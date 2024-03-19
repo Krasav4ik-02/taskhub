@@ -10,5 +10,4 @@ urlpatterns = [
     path('', include('developer.urls')),
     path('', include('analyst.urls')),
     path('', include('tester.urls')),
-    path('accounts/', include('allauth.urls'))
 ]
