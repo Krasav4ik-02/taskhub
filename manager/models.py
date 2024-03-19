@@ -7,14 +7,18 @@ from django.urls import reverse
 class User(AbstractUser):
     ava_image = models.ImageField(upload_to='avatars/', default='avatars/default_avatar.png')
     bin = models.CharField(verbose_name='БИН Компании', max_length=30)
-    name = models.CharField( verbose_name='Название Компании', max_length=255)
+    name_company = models.CharField( verbose_name='Название Компании', max_length=255)
     role = models.IntegerField(choices=((1, 'Developer'),(2, 'Manager'),(3, 'Tester'),(4, 'Analyst')), default=1)
     company_identifier = models.CharField(verbose_name='Идентификатор Компании', max_length=255)
+    data_joined_to_work = models.DateField()
 
 class Level(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     level_developer = models.IntegerField(choices=((1, 'Junior'),(2, 'Middle'),(3, 'Senior'),(4, 'Team lead')), default=1)
-    level_tester = models.IntegerField(choices=((1, 'Developer'),(2, 'Company'),(3, 'Tester'),(4, 'Analyst')), default=1)
+    level_tester = models.IntegerField(choices=((1, 'Tester'),(2, 'Main Tester')), default=1)
+    level_analyst = models.IntegerField(choices=((1, 'Analyst'), (2, 'Main Analyst')), default=1)
+
+
 
 
 
