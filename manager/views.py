@@ -3,90 +3,168 @@ import uuid
 
 from django.contrib import messages
 from django.contrib.auth import login, authenticate
-from django.http import JsonResponse
+from django.contrib.auth.hashers import make_password
+from django.http import JsonResponse, HttpResponseServerError, HttpResponseNotAllowed
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-from manager.forms import CustomManagerCreationForm, CustomAuthenticationForm, CustomDeveloperCreationForm
-from manager.models import User
+from manager.models import *
+from task.models import *
+from manager.models import *
 
 @ensure_csrf_cookie
 @csrf_exempt
 def registration(request):
     if request.method == 'POST':
-        form_data = json.loads(request.body.decode('utf-8'))
-        form = CustomDeveloperCreationForm(form_data)
-        if form.is_valid():
-            developer = form.save(commit=False)
+        try:
+            form_data = json.loads(request.body.decode('utf-8'))
+            print(form_data)
+            # Check if required fields are present
+            required_fields = ['username', 'last_name', 'first_name', 'password1', 'password2', 'bin', 'role']
+            for field in required_fields:
+                if field not in form_data:
+                    return JsonResponse({'error': f'{field.capitalize()} is required'}, status=400)
 
-            similar_companies = User.objects.filter(company_identifier__iexact=developer.company_identifier)
+            # Check if passwords match
+            if form_data['password1'] != form_data['password2']:
+                return JsonResponse({'error': 'Passwords do not match'}, status=400)
+
+            # Convert role to integer
+            role = int(form_data['role'])
+
+            # Check if role is valid
+            valid_roles = [1, 2, 3, 4, 5, 6, 7, 8]
+            if role not in valid_roles:
+                return JsonResponse({'error': 'Invalid role'}, status=400)
+
+            # Hash the password
+            hashed_password = make_password(form_data['password1'])
+
+            # Create the user
+            user = User.objects.create(
+                username=form_data['username'],
+                last_name=form_data['last_name'],
+                first_name=form_data['first_name'],
+                name_company=form_data.get('name_company', ''),  # Проверяем наличие ключа
+                password=hashed_password,
+                bin=form_data['bin'],
+                role=role
+            )
+
+            similar_companies = User.objects.filter(bin__iexact=user.bin)
             if similar_companies.exists():
                 company = similar_companies.first()
-                developer.name_company = company.name_company  # Устанавливаем name
-                developer.save()
-                return JsonResponse({'message': 'Регистрация прошла успешно'})
-            else:
-                messages.error(request, 'Нет похожих компаний. Напишите правильный идентификатор.')
-        else:
-            print("Form is not valid. Errors:", form.errors)
-            messages.error(request, 'Форма заполнена неверно. Пожалуйста, исправьте ошибки в форме.')
-    else:
-        form = CustomDeveloperCreationForm()
-    return render(request, 'manager/registration.html', {'form': form})
+                user.name_company = company.name_company  # Устанавливаем name
+                user.save()
+            return JsonResponse({'message': 'Registration successful'})
+
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    return HttpResponseNotAllowed(['POST'])
 
 @ensure_csrf_cookie
 @csrf_exempt
 def registration_manager(request):
     if request.method == 'POST':
-        form = CustomManagerCreationForm(json.loads(request.body.decode('utf-8')), exclude_company_identifier=True)
-        print(form)
-        if form.is_valid():
-            manager = form.save(commit=False)
-            manager.role = 2  # Устанавливаем статус "Компания"
-            manager.company_identifier = str(uuid.uuid4())
-            manager.save()
-            login(request, manager)
-            print("Manager saved successfully.")
-            return redirect('company_dashboard')
-        else:
-            print("Form is not valid. Errors:", form.errors)
-    else:
-        form = CustomManagerCreationForm(exclude_company_identifier=True)
-    return render(request, 'manager/registration_manager.html', {'form': form})
+        form_data = json.loads(request.body.decode('utf-8'))
+        print(form_data)
+        # Check if required fields are present
+        required_fields = ['username', 'last_name', 'first_name', 'name_company', 'password1', 'password2', 'bin','role']
+        for field in required_fields:
+            if field not in form_data:
+                return JsonResponse({'error': f'{field.capitalize()} is required'}, status=400)
 
+        # Check if passwords match
+        if form_data['password1'] != form_data['password2']:
+            return JsonResponse({'error': 'Passwords do not match'}, status=400)
 
-@ensure_csrf_cookie
+        # Hash the password
+        hashed_password = make_password(form_data['password1'])
+
+        # Create the user
+        user = User.objects.create(
+            username=form_data['username'],
+            last_name=form_data['last_name'],
+            first_name=form_data['first_name'],
+            name_company=form_data['name_company'],
+            password=hashed_password,
+            bin=form_data['bin']
+        )
+
+        # Set role and save manager
+        manager = user
+        manager.role = 1  # Set role to "Company"
+        manager.save()
+
+        # Log in the manager and redirect
+        login(request, manager)
+        print("Manager saved successfully.")
+
 @csrf_exempt
+@ensure_csrf_cookie
 def authentication(request):
     if request.method == 'POST':
         try:
-            data = (json.loads(request.body.decode('utf-8')))
+            data = json.loads(request.body.decode('utf-8'))
             username = data.get('username')
             password = data.get('password')
 
-            # Проверяем, что логин и пароль были отправлены
             if username and password:
-                # Аутентификация пользователя
                 user = authenticate(username=username, password=password)
-
-                # Если пользователь с таким логином и паролем существует
                 if user is not None:
-                    # Авторизуем пользователя
                     login(request, user)
-                    # Возвращаем данные пользователя
-                    user_data = [{
-                        'id': user.id,
-                        'username': user.username,
-                        'email': user.email,
-                        'first_name': user.first_name,
-                        'last_name': user.last_name,
-                        'data_joined_to_work': user.data_joined_to_work,
-                        'bin': user.bin,
-                        'name_company': user.name_company,
-                        'role': user.role,
-                        'company_identifier': user.company_identifier,
-                        # Добавьте другие данные пользователя, если нужно
-                    }]
-                    return JsonResponse(user_data, safe=False)
+                    user_projects = Project.objects.filter(user=user)
+                    user_data = {
+                        'user': {
+                            'id': user.id,
+                            'username': user.username,
+                            'email': user.email,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                            'data_joined_to_work': user.data_joined_to_work,
+                            'bin': user.bin,
+                            'name_company': user.name_company,
+                            'role': user.role,
+                        },
+                        'projects': [],
+                        'teamleads': [],
+                    }
+                    users = User.objects.filter(role=5, bin=user.bin)
+                    for teamlead in users:
+                        teamlead_data = {
+                            'id': teamlead.id,
+                            'username': teamlead.username,
+                            'role': teamlead.role,
+                            'bin' : teamlead.bin
+                        }
+                    user_data['projects'].append(teamlead_data)
+
+                    for project in user_projects:
+                        project_data = {
+                            'name_project': project.name_project,
+                            'project_descriptions': project.project_descriptions,
+                            'project_date_start': project.project_date_start,
+                            'project_date_end': project.project_date_end,
+                            'tasks': [],
+                        }
+                        tasks = Task.objects.filter(project=project)
+                        for task in tasks:
+                            task_data = {
+                                'name_task': task.name_task,
+                                'task_descriptions': task.task_descriptions,
+                                'task_date_start': task.task_date_start,
+                                'task_date_end': task.task_date_end,
+                                'task_priority': task.task_priority,
+                                'task_complexity': task.task_complexity,
+                                'task_status': task.task_status,
+                            }
+
+                            project_data['tasks'].append(task_data)
+                        user_data['projects'].append(project_data)
+
+                    return JsonResponse(user_data , safe=False)
                 else:
                     return JsonResponse({'error': 'Invalid username or password'}, status=400)
             else:
@@ -95,3 +173,4 @@ def authentication(request):
             return JsonResponse({'error': 'An error occurred while processing the request'}, status=400)
     else:
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+

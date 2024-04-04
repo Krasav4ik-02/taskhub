@@ -6,16 +6,18 @@ from django.urls import reverse
 
 class User(AbstractUser):
     ava_image = models.ImageField(upload_to='avatars/', default='avatars/default_avatar.png')
-    bin = models.CharField(verbose_name='БИН Компании', max_length=30, null=False)
+    bin = models.CharField(verbose_name='БИН Компании', max_length=12, null=False)
     name_company = models.CharField( verbose_name='Название Компании', max_length=255, null=False)
-    role = models.IntegerField(choices=((1, 'Developer'),(2, 'Manager'),(3, 'Tester'),(4, 'Analyst')), default=1, null=False)
-    company_identifier = models.CharField(verbose_name='Идентификатор Компании', max_length=255, null=False)
-    data_joined_to_work = models.DateField(default='2022-10-10', null=False)
+    role = models.IntegerField(choices=((1, 'Manager'),
+                                        (2, 'Developer Junior'),
+                                        (3, 'Developer Middle'),
+                                        (4, 'Developer Senior'),
+                                        (5, 'Developer Teamlead'),
+                                        (6, 'Tester'),
+                                        (7, 'Analyst'),
+                                        (8, 'Main Analyst')), default=1, null=False)
+    data_joined_to_work = models.DateField(null=True)
 
-class Level(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    level_developer = models.IntegerField(choices=((1, 'Junior'),(2, 'Middle'),(3, 'Senior'),(4, 'Team lead')), default=1)
-    level_analyst = models.IntegerField(choices=((1, 'Analyst'), (2, 'Main Analyst')), default=1)
 
 
 
