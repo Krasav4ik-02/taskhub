@@ -17,10 +17,3 @@ class User(AbstractUser):
                                         (7, 'Analyst'),
                                         (8, 'Main Analyst')), default=1, null=False)
     data_joined_to_work = models.DateField(null=True)
-
-
-
-
-
-
-

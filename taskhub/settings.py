@@ -40,9 +40,6 @@ INSTALLED_APPS = [
     'task',
     'vacation',
     'manager',
-    'developer',
-    'analyst',
-    'tester',
 ]
 
 MIDDLEWARE = [
@@ -57,10 +54,6 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'taskhub.urls'
-
-CORS_ALLOWED_ORIGINS = [
-    "http://26.52.254.138:3000",  # Указывайте здесь адрес вашего фронтенда
-]
 
 TEMPLATES = [
     {
@@ -141,6 +134,8 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 AUTH_USER_MODEL = 'manager.User'
+
+CORS_ALLOW_ALL_ORIGINS = True
 
 APPEND_SLASH = False
 # Default primary key field type

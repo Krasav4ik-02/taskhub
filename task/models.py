@@ -10,6 +10,13 @@ class Project(models.Model):
     project_date_start = models.DateField(verbose_name=' Дата создание')
     project_date_end = models.DateField(verbose_name=' Дата окончания')
 
+class ProjectMembership(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    role = models.CharField(max_length=100)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.project.name} ({self.role})"
 
 class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -33,10 +40,9 @@ class Task(models.Model):
         (5, 'High')),
         default=1)
     task_status = models.IntegerField(choices=(
-        (1, 'Активный '),
-        (2, 'На доработке'),
-        (3, 'на проверке '),
-        (4, 'Прогарающие'),
-        (5, 'Просроченные'),
-        (6, 'выполненные')
+        (1, 'На разработке'),
+        (2, 'На проверке'),
+        (3, 'На доработке '),
+        (4, 'У аналитика на проверке'),
+        (5, 'Выполнено'),
         ),default=1)

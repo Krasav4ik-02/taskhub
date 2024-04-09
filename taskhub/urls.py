@@ -7,7 +7,4 @@ urlpatterns = [
     path('', include('task.urls')),
     path('', include('vacation.urls')),
     path('', include('manager.urls')),
-    path('', include('developer.urls')),
-    path('', include('analyst.urls')),
-    path('', include('tester.urls')),
 ]
