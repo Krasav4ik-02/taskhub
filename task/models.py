@@ -13,10 +13,6 @@ class Project(models.Model):
 class ProjectMembership(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
-    role = models.CharField(max_length=100)
-
-    def __str__(self):
-        return f"{self.user.username} - {self.project.name} ({self.role})"
 
 class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)

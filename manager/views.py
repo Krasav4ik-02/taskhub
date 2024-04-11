@@ -118,53 +118,25 @@ def authentication(request):
             if username and password:
                 user = authenticate(username=username, password=password)
                 if user is not None:
-                    if user.role == 8:
-                        login(request, user)
-                        user_data = {
-                            'user': {
-                                'id': user.id,
-                                'username': user.username,
-                                'email': user.email,
-                                'first_name': user.first_name,
-                                'last_name': user.last_name,
-                                'data_joined_to_work': user.data_joined_to_work,
-                                'bin': user.bin,
-                                'ava_image': user.ava_image.url if user.ava_image else None,
-                                'name_company': user.name_company,
-                                'role': user.role,
-                            },
-                        }
-                    elif user.role == 5:
-                        login(request, user)
-                        user_data = {
-                            'user': {
-                                'id': user.id,
-                                'username': user.username,
-                                'email': user.email,
-                                'first_name': user.first_name,
-                                'last_name': user.last_name,
-                                'data_joined_to_work': user.data_joined_to_work,
-                                'bin': user.bin,
-                                'ava_image': user.ava_image.url if user.ava_image else None,
-                                'name_company': user.name_company,
-                                'role': user.role,
-                            },
-                        }
-                    elif user.role in [2, 3, 4]:
-                        login(request, user)
-                        user_data = {
-                            'user': {
-                                'id': user.id,
-                                'username': user.username,
-                                'email': user.email,
-                                'first_name': user.first_name,
-                                'last_name': user.last_name,
-                                'data_joined_to_work': user.data_joined_to_work,
-                                'bin': user.bin,
-                                'name_company': user.name_company,
-                                'role': user.role,
-                            },
-                        }
+                    login(request, user)
+                    user_data = {
+                        'user': {
+                            'email': user.email,
+                            'id': user.id,
+                            'username': user.username,
+                            'first_name': user.first_name,
+                            'last_name': user.last_name,
+                            'name_company': user.name_company,
+                            'bin': user.bin,
+                            'role': user.role,
+                            'data_joined_to_work': user.data_joined_to_work,
+                            'ava_image': user.ava_image.url if user.ava_image else None,
+                            'city': user.city,
+                            'telegram': user.telegram,
+                            'country': user.country,
+                            'phone_number': user.phone_number,
+                        },
+                    }
                     return JsonResponse(user_data , safe=False)
                 else:
                     return JsonResponse({'error': 'Invalid username or password'}, status=400)
@@ -239,6 +211,7 @@ def dashboard(request):
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
+                        'task_id': task.id,
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
                         'task_date_start': task.task_date_start,
@@ -259,7 +232,8 @@ def dashboard(request):
                 info['developers'].append(developers)
 
         elif data['role'] in [2,3,4]:
-            user_projects = Project.objects.filter(user__bin=data['bin'])
+            projectmembers = ProjectMembership.objects.filter(user__id=data['id'])
+            user_projects = Project.objects.filter(id__in=projectmembers.values_list('project_id', flat=True))
             users = User.objects.filter( role=6 , bin=data['bin'] )
             info = {
                 'projects': [],
@@ -276,7 +250,7 @@ def dashboard(request):
                         'tasks': [],
                     }
 
-                tasks = Task.objects.filter(project=project)
+                tasks = Task.objects.filter(user__id=data['id'], project=project)
                 for task in tasks:
                     task_data = {
                         'name_task': task.name_task,
@@ -405,11 +379,11 @@ def dashboard(request):
 def edit_profile(request):
     if request.method == 'POST':
         data = json.loads(request.body.decode('utf-8'))
-        print(data)
         try:
             user_id = data.get('user')
             if user_id:
                 user = User.objects.get(id=user_id)
+                print(user)
 
                 # Обновляем поля профиля, если они были переданы в запросе
                 if 'username' in data:
@@ -426,7 +400,16 @@ def edit_profile(request):
                     user.role = data['role']
                 if 'data_joined_to_work' in data:
                     user.data_joined_to_work = data['data_joined_to_work']
-
+                if 'email' in data:
+                    user.email = data['email']
+                if 'city' in data:
+                    user.city = data['city']
+                if 'telegram' in data:
+                    user.telegram = data['telegram']
+                if 'country' in data:
+                    user.country = data['country']
+                if 'phone_number' in data:
+                    user.phone_number = data['phone_number']
                 # Обновляем изображение профиля, если оно было передано в запросе
                 if 'ava_image' in data:
                     # Получаем данные изображения
@@ -445,7 +428,8 @@ def edit_profile(request):
 
                 # Формируем словарь с данными профиля пользователя
                 user_data = {
-                    'user_id': user.id,
+                    'email': user.email,
+                    'id': user.id,
                     'username': user.username,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
@@ -453,14 +437,18 @@ def edit_profile(request):
                     'bin': user.bin,
                     'role': user.role,
                     'data_joined_to_work': user.data_joined_to_work,
-                    'ava_image': user.ava_image.url if user.ava_image else None
+                    'ava_image': user.ava_image.url if user.ava_image else None,
+                    'city': user.city,
+                    'telegram': user.telegram,
+                    'country': user.country,
+                    'phone_number': user.phone_number,
                 }
 
                 # Отправляем данные профиля пользователя в виде JSON-ответа
                 return JsonResponse({'success': 'Profile updated successfully', 'user_data': user_data})
             else:
                 return JsonResponse({'error': 'User ID not provided'}, status=400)
-        except User.DoesNotExist:
+        except Task.DoesNotExist:
             return JsonResponse({'error': 'User not found'}, status=404)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)

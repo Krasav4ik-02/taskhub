@@ -17,3 +17,7 @@ class User(AbstractUser):
                                         (7, 'Analyst'),
                                         (8, 'Main Analyst')), default=1, null=False)
     data_joined_to_work = models.DateField(null=True)
+    country = models.CharField( max_length=30, null=True)
+    telegram = models.CharField(max_length=30, null=True)
+    city = models.CharField(max_length=30, null=True)
+    phone_number = models.CharField(max_length=30, null=True)
