@@ -12,6 +12,14 @@ class Project(models.Model):
 class ProjectMembership(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
+    role = models.IntegerField(choices=((1, 'Manager'),
+                                        (2, 'Developer Junior'),
+                                        (3, 'Developer Middle'),
+                                        (4, 'Developer Senior'),
+                                        (5, 'Developer Teamlead'),
+                                        (6, 'Tester'),
+                                        (7, 'Analyst'),
+                                        (8, 'Main Analyst')), default=1, null=False)
 
 class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
@@ -42,3 +50,4 @@ class Task(models.Model):
         (5, 'Выполнено'),
         ),default=1)
     id_tester = models.IntegerField(null=True)
+    file = models.FileField()

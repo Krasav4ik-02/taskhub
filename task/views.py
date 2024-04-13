@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+
+from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
 from django.utils.timezone import make_aware
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
@@ -10,7 +12,7 @@ from task.models import *
 def create_project(request):
     if request.method == 'POST':
             data = json.loads(request.body)
-
+            print(data)
             required_fields = ['name_project', 'user', 'project_descriptions', 'project_date_start', 'project_date_end']
             for field in required_fields:
                 if field not in data:
@@ -23,10 +25,14 @@ def create_project(request):
                 project_date_start=data['project_date_start'],
                 project_date_end=data['project_date_end'],
             )
-            projectmember = ProjectMembership.objects.create(
-                user_id = data['user'],
-                project_id = project.id ,
-            )
+            if not ProjectMembership.objects.filter(user_id=data['user'], project_id=project.id).exists():
+                # Если пользователя нет в проекте, создаем новую запись в ProjectMembership
+                projectmember = ProjectMembership(
+                    user_id=data['user'],
+                    project_id=project.id,
+                    role=5
+                )
+                projectmember.save()
 
             user_projects = Project.objects.filter(user=project.user)
             projects_data = []
@@ -69,13 +75,14 @@ def create_task(request):
                 task_priority=data['task_priority'],
                 task_complexity=data['task_complexity'],
             )
-            projectmember = ProjectMembership.objects.create(
-                user_id = data['user'],
-                project_id = data['project_id'],
-            )
-
-            task.task_status = 1
-            task.save()
+            if not ProjectMembership.objects.filter(user_id=data['user'], project_id=data['project_id']).exists():
+                role_user = User.objects.get(id=data['user'],)
+                projectmember = ProjectMembership(
+                    user_id=data['user'],
+                    project_id=data['project_id'],
+                    role=role_user.role,
+                )
+                projectmember.save()
 
             user_projects = Project.objects.filter(user=data['teamlead_id'])
             projects_data = []
