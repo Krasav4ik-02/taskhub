@@ -1,5 +1,4 @@
 from django.db import models
-
 from manager.models import User
 
 
@@ -42,3 +41,4 @@ class Task(models.Model):
         (4, 'У аналитика на проверке'),
         (5, 'Выполнено'),
         ),default=1)
+    id_tester = models.IntegerField(null=True)

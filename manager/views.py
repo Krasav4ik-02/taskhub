@@ -1,16 +1,10 @@
 import base64
 import json
 import re
-import uuid
-
-from django.contrib import messages
 from django.contrib.auth import login, authenticate
-from django.contrib.auth.decorators import login_required
 from django.contrib.auth.hashers import make_password
 from django.core.files.base import ContentFile
-from django.core.files.uploadedfile import InMemoryUploadedFile
-from django.http import JsonResponse, HttpResponseServerError, HttpResponseNotAllowed
-from django.shortcuts import render, redirect
+from django.http import JsonResponse, HttpResponseNotAllowed
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from task.models import *
 from manager.models import *
@@ -22,28 +16,23 @@ def registration(request):
         try:
             form_data = json.loads(request.body.decode('utf-8'))
             print(form_data)
-            # Check if required fields are present
             required_fields = ['username', 'last_name', 'first_name', 'password1', 'password2', 'bin', 'role']
+
             for field in required_fields:
-                if field not in form_data:
+                if field not in form_data or not form_data[field]:  # Если поле отсутствует или пустое
                     return JsonResponse({'error': f'{field.capitalize()} is required'}, status=400)
 
-            # Check if passwords match
             if form_data['password1'] != form_data['password2']:
                 return JsonResponse({'error': 'Passwords do not match'}, status=400)
 
-            # Convert role to integer
-            role = int(form_data['role'])
+            role = form_data['role']
 
-            # Check if role is valid
             valid_roles = [1, 2, 3, 4, 5, 6, 7, 8]
             if role not in valid_roles:
                 return JsonResponse({'error': 'Invalid role'}, status=400)
 
-            # Hash the password
             hashed_password = make_password(form_data['password1'])
 
-            # Create the user
             user = User.objects.create(
                 username=form_data['username'],
                 last_name=form_data['last_name'],
@@ -68,43 +57,36 @@ def registration(request):
 
     return HttpResponseNotAllowed(['POST'])
 
-@ensure_csrf_cookie
 @csrf_exempt
+@ensure_csrf_cookie
 def registration_manager(request):
     if request.method == 'POST':
         form_data = json.loads(request.body.decode('utf-8'))
         print(form_data)
-        # Check if required fields are present
-        required_fields = ['username', 'last_name', 'first_name', 'name_company', 'password1', 'password2', 'bin','role']
+        required_fields = ['username', 'last_name', 'first_name', 'name_company', 'password1', 'password2', 'bin']
         for field in required_fields:
-            if field not in form_data:
+            if field not in form_data or not form_data[field]:  # Если поле отсутствует или пустое
                 return JsonResponse({'error': f'{field.capitalize()} is required'}, status=400)
 
-        # Check if passwords match
         if form_data['password1'] != form_data['password2']:
             return JsonResponse({'error': 'Passwords do not match'}, status=400)
 
-        # Hash the password
         hashed_password = make_password(form_data['password1'])
 
-        # Create the user
         user = User.objects.create(
             username=form_data['username'],
             last_name=form_data['last_name'],
             first_name=form_data['first_name'],
             name_company=form_data['name_company'],
             password=hashed_password,
-            bin=form_data['bin']
+            bin=form_data['bin'],
+            role=1
         )
 
-        # Set role and save manager
-        manager = user
-        manager.role = 1  # Set role to "Company"
-        manager.save()
+        user.save()
 
-        # Log in the manager and redirect
-        login(request, manager)
         print("Manager saved successfully.")
+    return JsonResponse({'otvet': 'Manager saved successfully'}, status=200)
 
 @csrf_exempt
 @ensure_csrf_cookie
@@ -211,6 +193,7 @@ def dashboard(request):
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
+                        'user_id': task.user_id,
                         'task_id': task.id,
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
@@ -385,7 +368,6 @@ def edit_profile(request):
                 user = User.objects.get(id=user_id)
                 print(user)
 
-                # Обновляем поля профиля, если они были переданы в запросе
                 if 'username' in data:
                     user.username = data['username']
                 if 'first_name' in data:
@@ -410,23 +392,15 @@ def edit_profile(request):
                     user.country = data['country']
                 if 'phone_number' in data:
                     user.phone_number = data['phone_number']
-                # Обновляем изображение профиля, если оно было передано в запросе
                 if 'ava_image' in data:
-                    # Получаем данные изображения
                     image_data = data['ava_image']
-                    # Извлекаем base64-часть изображения
                     format, imgstr = image_data.split(';base64,')
-                    # Создаем изображение из base64-строки
                     img = ContentFile(base64.b64decode(imgstr), name='temp.' + re.search('image/(.*)', format).group(1))
-
                     if user.ava_image:
                         user.ava_image.delete()
-
                     user.ava_image.save('avatar.jpg', img, save=True)
-
                 user.save()
 
-                # Формируем словарь с данными профиля пользователя
                 user_data = {
                     'email': user.email,
                     'id': user.id,
@@ -444,7 +418,6 @@ def edit_profile(request):
                     'phone_number': user.phone_number,
                 }
 
-                # Отправляем данные профиля пользователя в виде JSON-ответа
                 return JsonResponse({'success': 'Profile updated successfully', 'user_data': user_data})
             else:
                 return JsonResponse({'error': 'User ID not provided'}, status=400)
