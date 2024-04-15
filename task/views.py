@@ -11,6 +11,7 @@ from task.models import *
 @ensure_csrf_cookie
 def create_project(request):
     if request.method == 'POST':
+        try:
             data = json.loads(request.body)
             print(data)
             required_fields = ['name_project', 'user', 'project_descriptions', 'project_date_start', 'project_date_end']
@@ -24,6 +25,7 @@ def create_project(request):
                 project_descriptions=data['project_descriptions'],
                 project_date_start=data['project_date_start'],
                 project_date_end=data['project_date_end'],
+                file_project=request.FILES.get('file_project')
             )
             if not ProjectMembership.objects.filter(user_id=data['user'], project_id=project.id).exists():
                 # Если пользователя нет в проекте, создаем новую запись в ProjectMembership
@@ -57,6 +59,12 @@ def create_project(request):
                 projects_data.append(project_data)
 
             return JsonResponse({'success': True, 'project_id': project.id, 'projects': projects_data})
+        except KeyError as e:
+            return JsonResponse({'success': False, 'error': f'Missing required parameter: {str(e)}'}, status=400)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': f'An error occurred: {str(e)}'}, status=400)
+
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
 @csrf_exempt
 @ensure_csrf_cookie
@@ -70,10 +78,11 @@ def create_task(request):
                 user_id=data['user'],
                 project_id=data['project_id'],
                 task_descriptions=data['task_descriptions'],
-                task_date_start=make_aware(datetime.strptime(data['task_date_start'], '%Y-%m-%dT%H:%M:%S')),
-                task_date_end = make_aware(datetime.strptime(data['task_date_end'], '%Y-%m-%dT%H:%M:%S')),
+                task_date_start= data['task_date_start'],
+                task_date_end = data['task_date_end'],
                 task_priority=data['task_priority'],
                 task_complexity=data['task_complexity'],
+                file_task=request.FILES.get('file_task')
             )
             if not ProjectMembership.objects.filter(user_id=data['user'], project_id=data['project_id']).exists():
                 role_user = User.objects.get(id=data['user'],)
@@ -109,9 +118,10 @@ def create_task(request):
                 projects_data.append(project_data)
 
             return JsonResponse({'success': True, 'project_id': project.id, 'projects': projects_data})
+        except KeyError as e:
+            return JsonResponse({'success': False, 'error': 'Missing required parameter: {}'.format(str(e))},status=400)
         except Exception as e:
-
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'An error occurred: {}'.format(str(e))}, status=400)
 
     return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
 
@@ -147,11 +157,7 @@ def edit_task(request):
                     'task_priority': task.task_priority,
                     'task_complexity': task.task_complexity,
                 }
-                project_data = {
-                    'project_id': task.project_id,
-                    'task': task_data,
-                }
-                return JsonResponse({'success': 'Task updated successfully', 'project_data': project_data})
+                return JsonResponse({'success': 'Task updated successfully', 'task_data': task_data})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     elif request.method == 'DELETE':
@@ -225,11 +231,19 @@ def send_task(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            task_id = data.get('task')
+            print(data)
+            task_id = data.get('task_id')
             task = Task.objects.get(id=task_id)
-            task.id_tester = data['id_tester']
+            task.id_tester = 53
             task.task_status = 2
             task.save()
-
+            if not ProjectMembership.objects.filter(user_id=task.id_tester, project_id=data['project_id']).exists():
+                projectmember = ProjectMembership(
+                    user_id=task.id_tester,
+                    project_id=data['project_id'],
+                    role=6,
+                )
+                projectmember.save()
+            return JsonResponse({'success': 'Task sent successfully'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)

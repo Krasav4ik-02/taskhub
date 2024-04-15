@@ -8,6 +8,7 @@ class Project(models.Model):
     project_descriptions = models.CharField(verbose_name=' Описание', max_length=255)
     project_date_start = models.DateField(verbose_name=' Дата создание')
     project_date_end = models.DateField(verbose_name=' Дата окончания')
+    file_project = models.FileField(upload_to='project_files/',default='', null=True)
 
 class ProjectMembership(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
@@ -26,8 +27,8 @@ class Task(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name_task = models.CharField(verbose_name='Название задачи', max_length=100)
     task_descriptions = models.CharField(verbose_name=' Описание задачи', max_length=255)
-    task_date_start = models.DateTimeField(verbose_name=' Дата создания задачи')
-    task_date_end = models.DateTimeField(verbose_name=' Дата окончания задачи')
+    task_date_start = models.DateField(verbose_name=' Дата создания задачи')
+    task_date_end = models.DateField(verbose_name=' Дата окончания задачи')
     task_priority = models.IntegerField(choices=(
         (1, 'Very Low'),
         (2, 'Low'),
@@ -50,4 +51,4 @@ class Task(models.Model):
         (5, 'Выполнено'),
         ),default=1)
     id_tester = models.IntegerField(null=True)
-    file = models.FileField()
+    file_task = models.FileField(upload_to='task_files/',default='', null=True)

@@ -26,7 +26,7 @@ def registration(request):
             if form_data['password1'] != form_data['password2']:
                 return JsonResponse({'error': 'Passwords do not match'}, status=400)
 
-            role = form_data['role']
+            role = int(form_data['role'])
 
             valid_roles = [1, 2, 3, 4, 5, 6, 7, 8]
             if role not in valid_roles:
@@ -251,6 +251,7 @@ def dashboard(request):
                 tasks = Task.objects.filter(user__id=data['id'], project=project)
                 for task in tasks:
                     task_data = {
+                        'task_id': task.id,
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
                         'task_date_start': task.task_date_start,
@@ -270,10 +271,13 @@ def dashboard(request):
                 }
                 info['testers'].append(testers)
 
+
         elif data['role'] == 6:
-            user_projects = Project.objects.filter(user__bin=data['bin'], user__id=data['id'])
+            projectmembers = ProjectMembership.objects.filter(user__id=data['id'])
+            user_projects = Project.objects.filter(id__in=projectmembers.values_list('project_id', flat=True))
             developers = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
             analysts = User.objects.filter(role=7, bin=data['bin'])
+            print(data)
             info = {
                 'projects': [],
                 'developers': [],
@@ -288,8 +292,8 @@ def dashboard(request):
                     'project_date_end': project.project_date_end,
                     'tasks': [],
                 }
+                tasks = Task.objects.filter(id_tester=data['id'], project=project)
 
-                tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
                         'name_task': task.name_task,
@@ -302,6 +306,7 @@ def dashboard(request):
                     }
                     project_data['tasks'].append(task_data)
                 info['projects'].append(project_data)
+
             for developer in developers:
                 developer = {
                     'id': developer.id,
@@ -318,6 +323,7 @@ def dashboard(request):
                     'role': analyst.role,
                     'bin': analyst.bin,
                 }
+
                 info['analysts'].append(analyst)
 
         elif data['role'] == 7:
@@ -411,7 +417,7 @@ def edit_profile(request):
                     image_data = data['ava_image']
                     format, imgstr = image_data.split(';base64,')
                     img = ContentFile(base64.b64decode(imgstr), name='temp.' + re.search('image/(.*)', format).group(1))
-                    if user.ava_image:
+                    if user.ava_image.name != 'avatars/default_avatar.png':
                         user.ava_image.delete()
                     user.ava_image.save('avatar.jpg', img, save=True)
                 user.save()
