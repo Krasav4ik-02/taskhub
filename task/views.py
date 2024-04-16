@@ -6,6 +6,7 @@ from django.http import JsonResponse
 from django.utils.timezone import make_aware
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from task.models import *
+from notifications.models import *
 
 @csrf_exempt
 @ensure_csrf_cookie
@@ -84,6 +85,11 @@ def create_task(request):
                 task_complexity=data['task_complexity'],
                 file_task=request.FILES.get('file_task')
             )
+            notifications = Notification.objects.create(
+                user_id=data['user'],
+                message=f'Вам назначена новая задача {data["name_task"]}',
+            )
+
             if not ProjectMembership.objects.filter(user_id=data['user'], project_id=data['project_id']).exists():
                 role_user = User.objects.get(id=data['user'],)
                 projectmember = ProjectMembership(
@@ -234,16 +240,54 @@ def send_task(request):
             print(data)
             task_id = data.get('task_id')
             task = Task.objects.get(id=task_id)
-            task.id_tester = 53
             task.task_status = 2
             task.save()
-            if not ProjectMembership.objects.filter(user_id=task.id_tester, project_id=data['project_id']).exists():
-                projectmember = ProjectMembership(
-                    user_id=task.id_tester,
-                    project_id=data['project_id'],
-                    role=6,
-                )
-                projectmember.save()
+            return JsonResponse({'success': 'Task sent successfully'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def invite_task(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            task_id = data.get('task_id')
+            task = Task.objects.get(id=task_id)
+            task.id_tester = data['user']
+            task.task_status = 2
+            task.save()
+            return JsonResponse({'success': 'Task sent successfully'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def send_task_analyst(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            task_id = data.get('task_id')
+            task = Task.objects.get(id=task_id)
+            task.task_status = 4
+            task.save()
+            return JsonResponse({'success': 'Task sent successfully'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def completed_task(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            task_id = data.get('task_id')
+            task = Task.objects.get(id=task_id)
+            task.task_status = 5
+            task.save()
             return JsonResponse({'success': 'Task sent successfully'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)

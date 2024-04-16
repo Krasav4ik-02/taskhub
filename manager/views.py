@@ -273,8 +273,8 @@ def dashboard(request):
 
 
         elif data['role'] == 6:
-            projectmembers = ProjectMembership.objects.filter(user__id=data['id'])
-            user_projects = Project.objects.filter(id__in=projectmembers.values_list('project_id', flat=True))
+            users = User.objects.filter(bin = data['bin'])
+            user_projects = Project.objects.filter(user__in= users)
             developers = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
             analysts = User.objects.filter(role=7, bin=data['bin'])
             print(data)
@@ -292,8 +292,8 @@ def dashboard(request):
                     'project_date_end': project.project_date_end,
                     'tasks': [],
                 }
-                tasks = Task.objects.filter(id_tester=data['id'], project=project)
 
+                tasks = Task.objects.filter(task_status = 2,project=project, id_tester = None)
                 for task in tasks:
                     task_data = {
                         'name_task': task.name_task,
@@ -327,7 +327,7 @@ def dashboard(request):
                 info['analysts'].append(analyst)
 
         elif data['role'] == 7:
-            user_projects = Project.objects.filter(user__bin=data['bin'], user__id=data['id'])
+            user_projects = Project.objects.filter(user__bin=data['bin'])
             developers = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
             teamleads = User.objects.filter(role=5, bin=data['bin'])
             info = {
@@ -345,7 +345,7 @@ def dashboard(request):
                     'tasks': [],
                 }
 
-                tasks = Task.objects.filter(project=project)
+                tasks = Task.objects.filter(project=project, task_status=4)
                 for task in tasks:
                     task_data = {
                         'name_task': task.name_task,

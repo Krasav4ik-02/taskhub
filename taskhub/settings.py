@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'task',
     'vacation',
     'manager',
+    'notifications',
 ]
 
 MIDDLEWARE = [
