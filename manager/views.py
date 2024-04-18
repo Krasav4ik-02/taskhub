@@ -176,7 +176,28 @@ def dashboard(request):
                     'bin': teamleads.bin,
                 }
                 info['teamleads'].append(teamleads)
-
+        elif data['role'] == 1:
+            users = User.objects.filter( bin=data['bin'])
+            info = {
+                'users': [],
+            }
+            for user in users:
+                user_info = {
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'role': user.role,
+                    'id': user.id,
+                    'projects': [],
+                }
+                user_projects = Project.objects.filter(user__bin=data['bin'], user__id=user.id)
+                for project in user_projects:
+                    project_data = {
+                        'name_project': project.name_project,
+                    }
+                    user_info['projects'].append(project_data)
+                info['users'].append(user_info)
+            print(info)
         elif data['role'] == 5:
             user_projects = Project.objects.filter(user__bin=data['bin'], user__id=data['id'])
             users = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
