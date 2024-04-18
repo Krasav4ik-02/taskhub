@@ -9,3 +9,4 @@ class VacationRequest(models.Model):
                                                       ('approved', 'Одобрено'),
                                                       ('rejected', 'Отклонено')), default='pending')
     approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_vacation_requests')
+

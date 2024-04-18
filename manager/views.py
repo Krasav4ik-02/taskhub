@@ -177,7 +177,7 @@ def dashboard(request):
                 }
                 info['teamleads'].append(teamleads)
         elif data['role'] == 1:
-            users = User.objects.filter( bin=data['bin'])
+            users = User.objects.filter(bin=data['bin'])
             info = {
                 'users': [],
             }
@@ -186,16 +186,21 @@ def dashboard(request):
                     'username': user.username,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
+                    'email': user.email,
+                    'data_joined_to_work': user.data_joined_to_work,
+                    'ava_image': user.ava_image,
                     'role': user.role,
                     'id': user.id,
                     'projects': [],
                 }
-                user_projects = Project.objects.filter(user__bin=data['bin'], user__id=user.id)
-                for project in user_projects:
-                    project_data = {
-                        'name_project': project.name_project,
-                    }
-                    user_info['projects'].append(project_data)
+                user_projects_id = ProjectMembership.objects.filter(user__id=user.id)
+                for project_id in user_projects_id:
+                    user_projects = Project.objects.filter(id=project_id.project_id)
+                    for project in user_projects:
+                        project_data = {
+                            'name_project': project.name_project,
+                        }
+                        user_info['projects'].append(project_data)
                 info['users'].append(user_info)
             print(info)
         elif data['role'] == 5:
@@ -269,7 +274,7 @@ def dashboard(request):
                     'tasks': [],
                 }
 
-                tasks = Task.objects.filter(user__id=data['id'], project=project)
+                tasks = Task.objects.filter(user__id=data['id'], project=project, task_status = 1)
                 for task in tasks:
                     task_data = {
                         'task_id': task.id,
