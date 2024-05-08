@@ -33,23 +33,25 @@ def registration(request):
                 return JsonResponse({'error': 'Invalid role'}, status=400)
 
             hashed_password = make_password(form_data['password1'])
-
-            user = User.objects.create(
-                username=form_data['username'],
-                last_name=form_data['last_name'],
-                first_name=form_data['first_name'],
-                name_company=form_data.get('name_company', ''),  # Проверяем наличие ключа
-                password=hashed_password,
-                bin=form_data['bin'],
-                role=role
-            )
-
-            similar_companies = User.objects.filter(bin__iexact=user.bin)
+            similar_companies = User.objects.filter(bin__iexact=form_data['bin'])
             if similar_companies.exists():
-                company = similar_companies.first()
-                user.name_company = company.name_company  # Устанавливаем name
-                user.save()
-            return JsonResponse({'message': 'Registration successful'})
+                user = User.objects.create(
+                    username=form_data['username'],
+                    last_name=form_data['last_name'],
+                    first_name=form_data['first_name'],
+                    name_company=form_data.get('name_company', ''),  # Проверяем наличие ключа
+                    password=hashed_password,
+                    bin=form_data['bin'],
+                    role=role
+                )
+                similar_companies = User.objects.filter(bin__iexact=user.bin)
+                if similar_companies.exists():
+                    company = similar_companies.first()
+                    user.name_company = company.name_company  # Устанавливаем name
+                    user.save()
+                return JsonResponse({'message': 'Registration successful'})
+            else:
+                return JsonResponse({'error': 'A company with such a bin does not exist'}, status=400)
 
         except json.JSONDecodeError:
             return JsonResponse({'error': 'Invalid JSON data'}, status=400)
@@ -74,21 +76,23 @@ def registration_manager(request):
             return JsonResponse({'error': 'Passwords do not match'}, status=400)
 
         hashed_password = make_password(form_data['password1'])
+        similar_companies = User.objects.filter(bin__iexact=str(form_data['bin']))
+        if similar_companies.exists():
+            return JsonResponse({'error': 'A company with such a bin already exists'}, status=400)
+        else:
+            user = User.objects.create(
+                username=form_data['username'],
+                last_name=form_data['last_name'],
+                first_name=form_data['first_name'],
+                name_company=form_data['name_company'],
+                password=hashed_password,
+                bin=form_data['bin'],
+                role=1
+            )
+            user.save()
+            return JsonResponse({'message': 'Registration successful'})
 
-        user = User.objects.create(
-            username=form_data['username'],
-            last_name=form_data['last_name'],
-            first_name=form_data['first_name'],
-            name_company=form_data['name_company'],
-            password=hashed_password,
-            bin=form_data['bin'],
-            role=1
-        )
-
-        user.save()
-
-        print("Manager saved successfully.")
-    return JsonResponse({'otvet': 'Manager saved successfully'}, status=200)
+    return JsonResponse({'message': 'Manager saved successfully'}, status=200)
 
 
 @csrf_exempt
@@ -177,31 +181,23 @@ def dashboard(request):
                 }
                 info['teamleads'].append(teamleads)
         elif data['role'] == 1:
-            users = User.objects.filter(bin=data['bin'])
+            users_company = User.objects.filter(bin=data['bin'])
             info = {
                 'users': [],
+                'projects': [],
             }
-            for user in users:
-                user_info = {
-                    'username': user.username,
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                    'data_joined_to_work': user.data_joined_to_work,
-                    'ava_image': user.ava_image,
-                    'role': user.role,
-                    'id': user.id,
-                    'projects': [],
+            for users in users_company:
+                user_company = {
+                    'id': users.id,
+                    'username': users.username,
+                    'first_name': users.first_name,
+                    'last_name': users.last_name,
+                    'role': users.role,
+                    'email': users.email,
+                    'data_joined_to_work': users.data_joined_to_work,
+                    'ava_image': users.ava_image.url if users.ava_image else None,
                 }
-                user_projects_id = ProjectMembership.objects.filter(user__id=user.id)
-                for project_id in user_projects_id:
-                    user_projects = Project.objects.filter(id=project_id.project_id)
-                    for project in user_projects:
-                        project_data = {
-                            'name_project': project.name_project,
-                        }
-                        user_info['projects'].append(project_data)
-                info['users'].append(user_info)
+                info['users'].append(user_company)
             print(info)
         elif data['role'] == 5:
             user_projects = Project.objects.filter(user__bin=data['bin'], user__id=data['id'])

@@ -1,12 +1,9 @@
 import json
-
 from django.http import JsonResponse
 from django.shortcuts import render
-
 from datetime import datetime
 from datetime import date
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
-
 from notifications.models import Notification
 from task.models import Task
 from manager.models import User
@@ -20,77 +17,88 @@ def calculate_vacation_days(request):
         try:
             data = json.loads(request.body)
             print(data)
-            user_id = data.get('user_id')  # Проверьте, что user_id присутствует в данных
-            user = User.objects.get(id=user_id)  # Получите объект пользователя по его ID
-
-            # Проверяем, что у пользователя есть дата начала работы
+            user_id = data.get('id')
+            user = User.objects.get(id=user_id)
+            managers = User.objects.filter(bin=user.bin, role = 1 )
+            for manager in managers:
+                manager_data = {
+                    'manager_id': manager.id,
+                }
+                print(manager_data)
             if user.data_joined_to_work:
                 info = {
 
                 }
-                years_worked = (date.today() - user.data_joined_to_work)  # Считаем стаж работы в годах
-                vacation_days = (years_worked.days / 365) * 24  # Подсчитываем отпускные дни
-                return JsonResponse({'vacation_days': vacation_days})
+                years_worked = (date.today() - user.data_joined_to_work)
+                years_worked_days = years_worked.days
+                vacation_days = (years_worked.days / 365) * 24
+                return JsonResponse({'years_worked_days': years_worked_days ,'vacation_days': vacation_days, 'manager_id': manager.id})
             else:
                 return JsonResponse({'error': 'Дата начала работы не указана'})
 
-            # Вернуть результат в формате JSON
 
         except User.DoesNotExist:
             return JsonResponse({'error': 'Пользователь с указанным ID не найден'}, status=404)
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)  # Вернуть сообщение об ошибке в случае исключения
+            return JsonResponse({'error': str(e)}, status=400)
     else:
-        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)  # Вернуть сообщение об ошибке, если метод не POST
+        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
 
 @csrf_exempt
 @ensure_csrf_cookie
-def create_vacation_request(request):
+def submit_vacation(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+        vacation_data = VacationRequest.objects.create(
+            user_id=data['user'],
+            start_date=data['start_date'],
+            end_date=data['end_date'],
+            manager_id=data['manager_id'],
+        )
+        vacation_requests = VacationRequest.objects.filter(status='pending')
+
+
+        vacation_tasks = Task.objects.filter(user__in=vacation_requests.values('user'), task_status__lt=5)
+
+        if vacation_tasks.exists():
+            for vacation_task in vacation_tasks:
+                context = {
+                    'task_id': vacation_task.id,
+                    'task_name': vacation_task.name_task,
+                }
+            print(vacation_task)
+            return JsonResponse({'Tasks': context}, safe=False)
+        else:
+            return JsonResponse({'message': 'No tasks found for users on vacation'}, status=200)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def vacations_for_manager(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            user_id = data.get('user_id')
-            start_date = data.get('start_date')
-            end_date = data.get('end_date')
-
-            if not all([user_id, start_date, end_date]):
-                return JsonResponse({'error': 'Missing required fields'}, status=400)
-
-            user = User.objects.get(id=user_id)
-
-            # Проверка наличия задач у пользователя
-            if user.role == [2,3,4]:
-                tasks_exist = Task.objects.filter(user__id=user, task_status=1).exists()
-
-                if tasks_exist:
-                    # Если есть задачи, перераспределение задач на других коллег
-                    tasks = Task.objects.filter(user__id=user)
-                    for task in tasks:
-                        task_data = {
-                            'task_id': task.id,
-                            'task_name': task.task_name,
-                        }
-                    return JsonResponse({'error': 'You have pending tasks. Please wait for their distribution.'}, status=400)
-                else:
-                    # Если задач нет, создаем новую заявку на отпуск
-                    with transaction.atomic():
-                        # Используем транзакцию для обеспечения целостности данных
-                        vacation_request = VacationRequest.objects.create(
-                            user=user,
-                            start_date=start_date,
-                            end_date=end_date
-                        )
-
-                        # Отправляем уведомление менеджеру о новой заявке на отпуск
-                        # (здесь нужно добавить логику отправки уведомления)
-
-                    return JsonResponse({'success': 'Vacation request created successfully'}, status=200)
-
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
-        except User.DoesNotExist:
-            return JsonResponse({'error': 'User not found'}, status=404)
+            print(data)
+            vacations= VacationRequest.objects.filter(user__bin=data['bin'])
+            print(vacations)
+            info = {
+                'vacations': []
+            }
+            for vac in vacations:
+                vacation={
+                    'id_vacation' : vac.id,
+                    'start_date' : vac.start_date,
+                    'end_date' : vac.end_date,
+                    'manager_id': vac.manager_id,
+                    'status' : vac.status,
+                    'user_id': vac.user_id,
+                    'user_first_name': vac.user.first_name,
+                    'user_last_name': vac.user.last_name,
+                    'user_role': vac.user.role,
+                    'user_ava_image': vac.user.ava_image.url if vac.user.ava_image else None,
+                }
+                print(vacation)
+                info['vacations'].append(vacation)
+            return JsonResponse(info, safe=False)
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=400)
-
-    return HttpResponseNotAllowed(['POST'])
+            return JsonResponse({'error': 'fff'}, status=400)

@@ -5,8 +5,7 @@ class VacationRequest(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     start_date = models.DateField()
     end_date = models.DateField()
-    status = models.CharField(max_length=20, choices=(('pending', 'На рассмотрении'),
-                                                      ('approved', 'Одобрено'),
-                                                      ('rejected', 'Отклонено')), default='pending')
-    approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_vacation_requests')
-
+    status = models.IntegerField( choices=((1, 'На согласований'),
+                                                (2, 'Одобрено'),
+                                                (3, 'Отклонено')), default=1)
+    manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_vacation_requests')

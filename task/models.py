@@ -52,7 +52,3 @@ class Task(models.Model):
         ),default=1)
     id_tester = models.IntegerField(null=True)
     file_task = models.FileField(upload_to='task_files/',default='', null=True)
-
-class TaskVacation(models.Model):
-    task = models.ForeignKey(Task, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
