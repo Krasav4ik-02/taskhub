@@ -10,6 +10,7 @@ urlpatterns = [
     path('registration', views.registration, name='registration'),
     path('home', views.dashboard , name='dashboard'),
     path('edit_profile', views.edit_profile , name='edit_profile'),
+    path('company_info', views.company_info, name='company_info'),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -470,3 +470,32 @@ def edit_profile(request):
             return JsonResponse({'error': str(e)}, status=400)
     else:
         return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def company_info(request):
+    data = json.loads(request.body.decode('utf-8'))
+    company = Company.objects.get(bin=data['bin'])
+    name_comp = User.objects.get(bin=data['bin'])
+
+    for comp in company:
+        info = {
+            'name_company': name_comp.name_company,
+            'descriptions': comp.descriptions,
+            'email': comp.email,
+            'address': comp.address,
+            'contact_phone': comp.contact_phone,
+            'telegram': comp.telegram,
+            'users': [],
+        }
+        users = User.objects.filter(bin=data['bin'])
+        for user in users:
+            user_info = {
+                'username': user.username,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'ava_image': user.ava_image,
+                'role': user.role,
+            }
+            info['users'].append(user_info)
+    return JsonResponse(info)

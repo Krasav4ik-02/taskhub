@@ -291,3 +291,116 @@ def completed_task(request):
             return JsonResponse({'success': 'Task sent successfully'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def get_info_users(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            user_info = User.objects.get(id=data['id'])
+            task_done = Task.objects.filter(user_id=data['id'], task_status=5)
+            projects_amount = ProjectMembership.objects.filter(user_id=data['id'])
+            info = {
+                'task_done': len(task_done),
+                'projects_amount': len(projects_amount),
+                'username': user_info.username,
+                'first_name': user_info.first_name,
+                'last_name': user_info.last_name,
+                'email': user_info.email,
+                'data_joined_to_work': user_info.data_joined_to_work,
+                'ava_image': user_info.ava_image.url if user_info.ava_image else None,
+                'telegram': user_info.telegram,
+                'role': user_info.role,
+                'id': user_info.id,
+                'phone_number': user_info.phone_number,
+                'tasks': [],
+            }
+            print(info)
+            tasks = Task.objects.filter(user_id=data['id'])
+            for task in tasks:
+                task_data = {
+                    'task_id': task.id,
+                    'name_task': task.name_task,
+                    'task_descriptions': task.task_descriptions,
+                    'task_date_start': task.task_date_start,
+                    'task_date_end': task.task_date_end,
+                    'task_priority': task.task_priority,
+                    'task_complexity': task.task_complexity,
+                    'task_status': task.task_status,
+                }
+                info['tasks'].append(task_data)
+            print(info)
+            return JsonResponse(info, safe=False)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def calculate_user_kpi(request):
+    data = json.loads(request.body)
+    user_id = data.get('user_id')
+    # Получить пользователя по user_id
+    try:
+        user = User.objects.get(pk=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+
+    # Рассчитать KPI пользователя
+    kpi = calculate_user_kpi_value(user)
+
+    # Получить данные о задачах пользователя
+    tasks = Task.objects.filter(user=user).values('name_task', 'task_status', 'task_date_start', 'task_date_end')
+
+    # Формирование JSON-объекта с данными
+    response_data = {
+        'kpi': kpi,
+        'tasks': list(tasks)  # Преобразование QuerySet в список словарей
+    }
+
+    return JsonResponse(response_data)
+
+def calculate_user_kpi_value(user):
+    # Рассчитать общее количество единиц работы пользователя
+    total_work_units = 0
+    tasks = Task.objects.filter(user=user)
+    for task in tasks:
+        task_work_units = calculate_task_work_units(task)
+        total_work_units += task_work_units
+
+    # Рассчитать процент выполненной работы пользователя
+    completed_work_units = 0
+    for task in tasks:
+        if task.task_status == 5:  # Предполагается, что статус 5 означает выполнение задачи
+            task_work_units = calculate_task_work_units(task)
+            completed_work_units += task_work_units
+
+    if total_work_units == 0:
+        return 0  # Вернуть 0, если у пользователя нет работы
+    else:
+        completion_rate = (completed_work_units / total_work_units) * 100
+        return completion_rate
+
+def calculate_task_work_units(task):
+    # Словарь соответствия сложности задачи к количеству единиц работы
+    complexity_units_mapping = {
+        'Very Low': 1,
+        'Low': 2,
+        'Normal': 3,
+        'Medium': 4,
+        'High': 5,
+    }
+
+    # Словарь соответствия приоритета задачи к количеству единиц работы
+    priority_units_mapping = {
+        'Very Low': 1,
+        'Low': 2,
+        'Normal': 3,
+        'Medium': 4,
+        'High': 5,
+    }
+    task_work_units = (complexity_units_mapping[task.task_complexity] *
+                       priority_units_mapping[task.task_priority])
+
+    return task_work_units
