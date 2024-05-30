@@ -28,6 +28,11 @@ def create_project(request):
                 project_date_end=data['project_date_end'],
                 file_project=request.FILES.get('file_project')
             )
+
+            files = request.FILES.getlist('file_project')
+            for file in files:
+                ProjectFile.objects.create(project=project, file_project=file)
+
             if not ProjectMembership.objects.filter(user_id=data['user'], project_id=project.id).exists():
                 # Если пользователя нет в проекте, создаем новую запись в ProjectMembership
                 projectmember = ProjectMembership(
@@ -36,6 +41,11 @@ def create_project(request):
                     role=5
                 )
                 projectmember.save()
+
+            notification = Notification.objects.create(
+                user_id = data['user'],
+                message = f"Аналитик создал новый проект : {data['name_project']}"
+            )
 
             user_projects = Project.objects.filter(user=project.user)
             projects_data = []
@@ -76,28 +86,31 @@ def create_task(request):
             print(data)
             task = Task.objects.create(
                 name_task=data['name_task'],
-                user_id=data['user'],
+                user_id=data['teamlead_id'],
                 project_id=data['project_id'],
                 task_descriptions=data['task_descriptions'],
                 task_date_start= data['task_date_start'],
                 task_date_end = data['task_date_end'],
                 task_priority=data['task_priority'],
                 task_complexity=data['task_complexity'],
-                file_task=request.FILES.get('file_task')
-            )
-            notifications = Notification.objects.create(
-                user_id=data['user'],
-                message=f'Вам назначена новая задача {data["name_task"]}',
             )
 
-            if not ProjectMembership.objects.filter(user_id=data['user'], project_id=data['project_id']).exists():
-                role_user = User.objects.get(id=data['user'],)
-                projectmember = ProjectMembership(
-                    user_id=data['user'],
-                    project_id=data['project_id'],
-                    role=role_user.role,
-                )
-                projectmember.save()
+            files = request.FILES.getlist('file_task')
+            for file in files:
+                TaskFile.objects.create(task=task, file_task=file)
+            # notifications = Notification.objects.create(
+            #     user_id = data['user'],
+            #     message=f'Вам назначена новая задача {data["name_task"]}',
+            # )
+
+            # if not ProjectMembership.objects.filter(user_id=data['teamlead_id'], project_id=data['project_id']).exists():
+            #     role_user = User.objects.get(id=data['teamlead_id'],)
+            #     projectmember = ProjectMembership(
+            #         user_id=data['teamlead_id'],
+            #         project_id=data['project_id'],
+            #         role=role_user.role,
+            #     )
+            #     projectmember.save()
 
             user_projects = Project.objects.filter(user=data['teamlead_id'])
             projects_data = []
@@ -163,15 +176,26 @@ def edit_task(request):
                     'task_priority': task.task_priority,
                     'task_complexity': task.task_complexity,
                 }
+
+                # notifications = Notification.objects.create(
+                #     user_id=data['user'],
+                #     message=f'Задача {data["name_task"]} изменена',
+                # )
+
                 return JsonResponse({'success': 'Task updated successfully', 'task_data': task_data})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
     elif request.method == 'DELETE':
         try:
             data = json.loads(request.body)
+            print(data)
             task_id = data.get('task_id')
             if task_id:
                 task = Task.objects.get(id=task_id)
+                # notifications = Notification.objects.create(
+                #     user_id=data['id'],
+                #     message=f'Задача {task.name_task} удалена',
+                # )
                 task.delete()
                 return JsonResponse({'success': 'Task deleted successfully'})
             else:
@@ -189,38 +213,98 @@ def edit_project(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            print(data)
             project_id = data.get('project_id')
             if project_id:
                 project = Project.objects.get(id=project_id)
                 if 'name_project' in data:
-                    project.name_task = data['name_project']
+                    project.name_project = data['name_project']
                 if 'project_descriptions' in data:
-                    project.task_descriptions = data['project_descriptions']
+                    project.project_descriptions = data['project_descriptions']
                 if 'project_date_start' in data:
-                    project.task_date_start = data['project_date_start']
+                    project.project_date_start = data['project_date_start']
                 if 'project_date_end' in data:
-                    project.task_date_end = data['project_date_end']
-
+                    project.project_date_end = data['project_date_end']
                 project.save()
-                project_data = {
-                    'project_id': project.id,
-                    'name_project': project.name_project,
-                    'project_descriptions': project.project_descriptions,
-                    'project_date_start': project.project_date_start,
-                    'project_date_end': project.project_date_end,
+
+                user_projects = Project.objects.filter(user__bin=data['bin'])
+                info = {
+                    'projects': [],
                 }
-                return JsonResponse({'success': 'Task updated successfully', 'project_data': project_data})
+                for project in user_projects:
+                    project_data = {
+                        'project_id': project.id,
+                        'name_project': project.name_project,
+                        'project_descriptions': project.project_descriptions,
+                        'project_date_start': project.project_date_start,
+                        'project_date_end': project.project_date_end,
+                        'tasks': [],
+                    }
+
+                    tasks = Task.objects.filter(project=project)
+                    for task in tasks:
+                        task_data = {
+                            'name_task': task.name_task,
+                            'task_descriptions': task.task_descriptions,
+                            'task_date_start': task.task_date_start,
+                            'task_date_end': task.task_date_end,
+                            'task_priority': task.task_priority,
+                            'task_complexity': task.task_complexity,
+                            'task_status': task.task_status,
+                        }
+                        project_data['tasks'].append(task_data)
+                    info['projects'].append(project_data)
+                # notifications = Notification.objects.create(
+                #     user_id=data['user'],
+                #     message=f'Задача {data["name_project"]} изменена',
+                # )
+                return JsonResponse(info, safe= False)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
 
     elif request.method == 'DELETE':
         try:
             data = json.loads(request.body)
-            project_id = data.get('project')
+            project_id = data.get('project_id')
             if project_id:
                 project = Project.objects.get(id=project_id)
+                # notifications = Notification.objects.create(
+                #     user_id=data['user'],
+                #     message=f'Задача {project.name_project} удалена',
+                # )
                 project.delete()
-                return JsonResponse({'success': 'Task deleted successfully'})
+                user_projects = Project.objects.filter(user__bin=data['bin'])
+                info = {
+                    'projects': [],
+                }
+                for project in user_projects:
+                    project_data = {
+                        'project_id': project.id,
+                        'name_project': project.name_project,
+                        'project_descriptions': project.project_descriptions,
+                        'project_date_start': project.project_date_start,
+                        'project_date_end': project.project_date_end,
+                        'tasks': [],
+                    }
+
+                    tasks = Task.objects.filter(project=project)
+                    for task in tasks:
+                        task_data = {
+                            'name_task': task.name_task,
+                            'task_descriptions': task.task_descriptions,
+                            'task_date_start': task.task_date_start,
+                            'task_date_end': task.task_date_end,
+                            'task_priority': task.task_priority,
+                            'task_complexity': task.task_complexity,
+                            'task_status': task.task_status,
+                        }
+                        project_data['tasks'].append(task_data)
+                    info['projects'].append(project_data)
+                # notifications = Notification.objects.create(
+                #     user_id=data['user'],
+                #     message=f'Задача {data["name_project"]} изменена',
+                # )
+                return JsonResponse(info, safe=False)
             else:
                 return JsonResponse({'error': 'Project ID not provided'}, status=400)
         except Project.DoesNotExist:
@@ -230,6 +314,28 @@ def edit_project(request):
     else:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
 
+@csrf_exempt
+@ensure_csrf_cookie
+def link_developer(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            task_id = data.get('task_id')
+            task = Task.objects.get(id=task_id)
+            task.user_id = data['developer_id']
+            task.save()
+            if not ProjectMembership.objects.filter(user_id=data['developer_id'], project_id=data['project_id']).exists():
+                role_user = User.objects.get(id=data['developer_id'],)
+                projectmember = ProjectMembership(
+                    user_id=data['developer_id'],
+                    project_id=data['project_id'],
+                    role=role_user.role,
+                )
+                projectmember.save()
+            return JsonResponse({'success': 'Task linked succesfully'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
 
 @csrf_exempt
 @ensure_csrf_cookie
@@ -255,7 +361,7 @@ def invite_task(request):
             print(data)
             task_id = data.get('task_id')
             task = Task.objects.get(id=task_id)
-            task.id_tester = data['user']
+            task.id_tester = data['id']
             task.task_status = 2
             task.save()
             return JsonResponse({'success': 'Task sent successfully'})
@@ -314,6 +420,7 @@ def get_info_users(request):
                 'telegram': user_info.telegram,
                 'role': user_info.role,
                 'id': user_info.id,
+                'bin': user_info.bin,
                 'phone_number': user_info.phone_number,
                 'tasks': [],
             }
@@ -335,6 +442,143 @@ def get_info_users(request):
             return JsonResponse(info, safe=False)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def edit_user(request):
+    if request.method == 'POST':
+        data = json.loads(request.body.decode('utf-8'))
+        try:
+            user_id = data.get('id')
+            if user_id:
+                user = User.objects.get(id=user_id)
+                print(user)
+
+                if 'username' in data:
+                    user.username = data['username']
+                if 'first_name' in data:
+                    user.first_name = data['first_name']
+                if 'last_name' in data:
+                    user.last_name = data['last_name']
+                if 'name_company' in data:
+                    user.name_company = data['name_company']
+                if 'bin' in data:
+                    user.bin = data['bin']
+                if 'role' in data:
+                    user.role = data['role']
+                if 'data_joined_to_work' in data:
+                    user.data_joined_to_work = data['data_joined_to_work']
+                if 'email' in data:
+                    user.email = data['email']
+                if 'city' in data:
+                    user.city = data['city']
+                if 'telegram' in data:
+                    user.telegram = data['telegram']
+                if 'country' in data:
+                    user.country = data['country']
+                if 'phone_number' in data:
+                    user.phone_number = data['phone_number']
+                user.save()
+
+                user_data = {
+                    'email': user.email,
+                    'id': user.id,
+                    'username': user.username,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'name_company': user.name_company,
+                    'bin': user.bin,
+                    'role': user.role,
+                    'data_joined_to_work': user.data_joined_to_work,
+                    'city': user.city,
+                    'telegram': user.telegram,
+                    'country': user.country,
+                    'phone_number': user.phone_number,
+                }
+
+                return JsonResponse({'success': 'Profile updated successfully', 'user_data': user_data})
+            else:
+                return JsonResponse({'error': 'User ID not provided'}, status=400)
+        except Task.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Only POST requests are allowed'}, status=405)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def dissmiss(request):
+    if request.method == 'DELETE':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            user_id = data.get('id')
+            user = User.objects.get(id = data['id'])
+            users_company = User.objects.filter(bin=data['bin'], role__in=[2, 3, 4, 5, 6, 7, 8])
+            if user.role == [2,3,4]:
+                if user_id:
+                    projectmembership = ProjectMembership.objects.get(user_id = user_id)
+                    projectmembership.delete()
+                    tasks = Task.objects.filter(user_id = user_id)
+                    for task in tasks:
+                        task.delete()
+                    notifications = Notification.objects.filter(user_id = user_id)
+                    for notification in notifications:
+                        notification.delete()
+            info = {
+                'users': [],
+            }
+            for users in users_company:
+                user_company = {
+                    'id': users.id,
+                    'username': users.username,
+                    'first_name': users.first_name,
+                    'last_name': users.last_name,
+                    'role': users.role,
+                    'email': users.email,
+                    'data_joined_to_work': users.data_joined_to_work,
+                    'ava_image': users.ava_image.url if users.ava_image else None,
+                }
+                info['users'].append(user_company)
+
+            # if user.role__in == 5:
+            #     if user_id:
+            #         projectmembership = ProjectMembership.objects.get(user_id = user_id)
+            #         projectmembership.delete()
+            #         task = Task.objects.get(user_id = user_id)
+            #         task.delete()
+            #         notification = Notification.objects.get(user_id = user_id)
+            #         notification.delete()
+            # if user.role__in == 6:
+            #     if user_id:
+            #         projectmembership = ProjectMembership.objects.get(user_id = user_id)
+            #         projectmembership.delete()
+            #         task = Task.objects.get(user_id = user_id)
+            #         task.delete()
+            #         notification = Notification.objects.get(user_id = user_id)
+            #         notification.delete()
+            # if user.role__in == 7:
+            #     if user_id:
+            #         projectmembership = ProjectMembership.objects.get(user_id = user_id)
+            #         projectmembership.delete()
+            #         task = Task.objects.get(user_id = user_id)
+            #         task.delete()
+            #         notification = Notification.objects.get(user_id = user_id)
+            #         notification.delete()
+            # if user.role__in == 8:
+            #     if user_id:
+            #         projectmembership = ProjectMembership.objects.get(user_id = user_id)
+            #         projectmembership.delete()
+            #         task = Task.objects.get(user_id = user_id)
+            #         task.delete()
+            #         notification = Notification.objects.get(user_id = user_id)
+            #         notification.delete()
+            user.delete()
+            return JsonResponse(info, safe=False)
+        except Project.DoesNotExist:
+            return JsonResponse({'error': 'User not found'}, status=404)
+
 
 @csrf_exempt
 @ensure_csrf_cookie

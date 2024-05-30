@@ -26,9 +26,6 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['26.143.202.240','localhost']
 
-
-# Application definition
-
 INSTALLED_APPS = [
     'corsheaders',
     'django.contrib.admin',

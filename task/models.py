@@ -49,6 +49,15 @@ class Task(models.Model):
         (3, 'На доработке '),
         (4, 'У аналитика на проверке'),
         (5, 'Выполнено'),
+        (6, 'Заморожен'),
         ),default=1)
+    task_vacation_status = models.BooleanField(default=False)
     id_tester = models.IntegerField(null=True)
+
+class TaskFile(models.Model):
+    task = models.ForeignKey(Task, related_name='files', on_delete=models.CASCADE)
     file_task = models.FileField(upload_to='task_files/',default='', null=True)
+
+class ProjectFile(models.Model):
+    project = models.ForeignKey(Project, related_name='files', on_delete=models.CASCADE)
+    file_project = models.FileField(upload_to='project_files/',default='', null=True)

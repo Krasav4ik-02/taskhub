@@ -8,6 +8,7 @@ from django.http import JsonResponse, HttpResponseNotAllowed
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from task.models import *
 from manager.models import *
+from notifications.models import *
 
 
 @ensure_csrf_cookie
@@ -145,9 +146,11 @@ def dashboard(request):
         if data['role'] == 8:
             user_projects = Project.objects.filter(user__bin=data['bin'])
             users = User.objects.filter(role=5, bin=data['bin'])
+            notifications = Notification.objects.filter(user_id=data['id'], is_read=False)
             info = {
                 'projects': [],
                 'teamleads': [],
+                'notifications': [],
             }
             for project in user_projects:
                 project_data = {
@@ -162,6 +165,7 @@ def dashboard(request):
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
+                        'task_id': task.id,
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
                         'task_date_start': task.task_date_start,
@@ -172,6 +176,13 @@ def dashboard(request):
                     }
                     project_data['tasks'].append(task_data)
                 info['projects'].append(project_data)
+            for notification in notifications:
+                notification_data = {
+                    'message': notification.message,
+                    'time': notification.timestamp,
+                }
+                info['notifications'].append(notification_data)
+
             for teamleads in users:
                 teamleads = {
                     'id': teamleads.id,
@@ -181,10 +192,12 @@ def dashboard(request):
                 }
                 info['teamleads'].append(teamleads)
         elif data['role'] == 1:
-            users_company = User.objects.filter(bin=data['bin'])
+            users_company = User.objects.filter(bin=data['bin'], role__in=[2,3,4,5,6,7,8])
+            notifications = Notification.objects.filter(user_id=data['id'], is_read=False)
             info = {
                 'users': [],
                 'projects': [],
+                'notifications': [],
             }
             for users in users_company:
                 user_company = {
@@ -196,15 +209,24 @@ def dashboard(request):
                     'email': users.email,
                     'data_joined_to_work': users.data_joined_to_work,
                     'ava_image': users.ava_image.url if users.ava_image else None,
+                    'bin': users.bin
                 }
                 info['users'].append(user_company)
-            print(info)
+            for notification in notifications:
+                notification = {
+                    'message': notifications.message,
+                    'time': notifications.timestamp,
+                }
+                info['notifications'].append(notification)
+
         elif data['role'] == 5:
             user_projects = Project.objects.filter(user__bin=data['bin'], user__id=data['id'])
             users = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
+            notifications = Notification.objects.filter(user_id=data['id'], is_read=False)
             info = {
                 'projects': [],
                 'developers': [],
+                'notifications': [],
             }
             for project in user_projects:
                 project_data = {
@@ -246,18 +268,28 @@ def dashboard(request):
                 developers = {
                     'id': developers.id,
                     'username': developers.username,
+                    'last_name': developers.last_name,
+                    'first_name': developers.first_name,
                     'role': developers.role,
                     'bin': developers.bin,
+                    'ava_image': developer.ava_image.url if developer.ava_image else None,
                 }
                 info['developers'].append(developers)
-
+            for notification in notifications:
+                notification_data = {
+                    'message': notification.message,
+                    'time': notification.timestamp,
+                }
+                info['notifications'].append(notification_data)
         elif data['role'] in [2, 3, 4]:
             projectmembers = ProjectMembership.objects.filter(user__id=data['id'])
             user_projects = Project.objects.filter(id__in=projectmembers.values_list('project_id', flat=True))
             users = User.objects.filter(role=6, bin=data['bin'])
+            notifications = Notification.objects.filter(user_id=data['id'], is_read=False)
             info = {
                 'projects': [],
                 'testers': [],
+                'notifications': [],
             }
 
             for project in user_projects:
@@ -292,18 +324,25 @@ def dashboard(request):
                     'bin': testers.bin,
                 }
                 info['testers'].append(testers)
-
+            for notification in notifications:
+                notification_data = {
+                    'message': notification.message,
+                    'time': notification.timestamp,
+                }
+                info['notifications'].append(notification_data)
 
         elif data['role'] == 6:
             users = User.objects.filter(bin = data['bin'])
             user_projects = Project.objects.filter(user__in= users)
             developers = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
             analysts = User.objects.filter(role=7, bin=data['bin'])
+            notifications = Notification.objects.filter(user_id=data['id'], is_read=False)
             print(data)
             info = {
                 'projects': [],
                 'developers': [],
                 'analysts': [],
+                'notifications': [],
             }
             for project in user_projects:
                 project_data = {
@@ -318,6 +357,7 @@ def dashboard(request):
                 tasks = Task.objects.filter(task_status = 2,project=project, id_tester = None)
                 for task in tasks:
                     task_data = {
+                        'task_id': task.id,
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
                         'task_date_start': task.task_date_start,
@@ -347,15 +387,22 @@ def dashboard(request):
                 }
 
                 info['analysts'].append(analyst)
-
+            for notification in notifications:
+                notification_data = {
+                    'message': notification.message,
+                    'time': notification.timestamp,
+                }
+                info['notifications'].append(notification_data)
         elif data['role'] == 7:
             user_projects = Project.objects.filter(user__bin=data['bin'])
             developers = User.objects.filter(role__in=[2, 3, 4], bin=data['bin'])
             teamleads = User.objects.filter(role=5, bin=data['bin'])
+            notifications = Notification.objects.filter(user_id=data['id'], is_read=False)
             info = {
                 'projects': [],
                 'developers': [],
                 'teamleads': [],
+                'notifications': [],
             }
             for project in user_projects:
                 project_data = {
@@ -396,6 +443,12 @@ def dashboard(request):
                     'bin': teamlead.bin,
                 }
                 info['teamleads'].append(teamlead)
+            for notification in notifications:
+                notification = {
+                    'message': notifications.message,
+                    'time': notifications.timestamp,
+                }
+                info['notifications'].append(notification)
 
         return JsonResponse(info, safe=False)
 
@@ -410,7 +463,7 @@ def edit_profile(request):
             if user_id:
                 user = User.objects.get(id=user_id)
                 print(user)
-
+                print(data)
                 if 'username' in data:
                     user.username = data['username']
                 if 'first_name' in data:

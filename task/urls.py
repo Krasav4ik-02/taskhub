@@ -9,4 +9,8 @@ urlpatterns = [
     path('send_task', views.send_task, name='send_task'),
     path('get_info_users', views.get_info_users, name='get_info_users'),
     path('calculate_user_kpi', views.calculate_user_kpi, name='calculate_user_kpi'),
+    path('edit_user', views.edit_user, name='edit_user'),
+    path('dissmiss', views.dissmiss, name='dismiss'),
+    path('link_developer', views.link_developer, name='link_developer'),
+    path('invite_task', views.invite_task, name='invite_task'),
 ]
