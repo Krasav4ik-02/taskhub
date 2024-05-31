@@ -3,19 +3,26 @@ from datetime import datetime
 
 from django.core.exceptions import ObjectDoesNotExist
 from django.http import JsonResponse
+from django.utils.datastructures import MultiValueDict, MultiValueDictKeyError
 from django.utils.timezone import make_aware
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from task.models import *
 from notifications.models import *
+from urllib.parse import parse_qs
+
 
 @csrf_exempt
 @ensure_csrf_cookie
 def create_project(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            print(data)
+            # Extracting form data from request.POST
+            data = request.POST
+            print('request', request.POST)
+            files = request.FILES.get('file')  # Use getlist to handle multiple files
+            print('files:', files)
             required_fields = ['name_project', 'user', 'project_descriptions', 'project_date_start', 'project_date_end']
+
             for field in required_fields:
                 if field not in data:
                     return JsonResponse({'success': False, 'error': f'Missing required field: {field}'}, status=400)
@@ -26,38 +33,34 @@ def create_project(request):
                 project_descriptions=data['project_descriptions'],
                 project_date_start=data['project_date_start'],
                 project_date_end=data['project_date_end'],
-                file_project=request.FILES.get('file_project')
             )
-
-            files = request.FILES.getlist('file_project')
-            for file in files:
-                ProjectFile.objects.create(project=project, file_project=file)
+            if files:
+                ProjectFile.objects.create(project_id=project.id, file_project=files)
 
             if not ProjectMembership.objects.filter(user_id=data['user'], project_id=project.id).exists():
-                # Если пользователя нет в проекте, создаем новую запись в ProjectMembership
-                projectmember = ProjectMembership(
+                ProjectMembership.objects.create(
                     user_id=data['user'],
                     project_id=project.id,
                     role=5
                 )
-                projectmember.save()
-
-            notification = Notification.objects.create(
-                user_id = data['user'],
-                message = f"Аналитик создал новый проект : {data['name_project']}"
-            )
 
             user_projects = Project.objects.filter(user=project.user)
             projects_data = []
+            if files:
+                project_files = ProjectFile.objects.get(project_id=project.id)
+                project_data = project_files.file_project.url if project_files.file_project.url else None
+            else:
+                project_data = 0
             for project in user_projects:
                 project_data = {
                     'project_id': project.id,
                     'name_project': project.name_project,
+                    'files': project_data,
                     'tasks': [],
                 }
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
-                    task_data = {
+                    project_data['tasks'].append({
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
                         'task_date_start': task.task_date_start,
@@ -65,12 +68,11 @@ def create_project(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
-                    }
-                    project_data['tasks'].append(task_data)
+                    })
                 projects_data.append(project_data)
 
             return JsonResponse({'success': True, 'project_id': project.id, 'projects': projects_data})
-        except KeyError as e:
+        except MultiValueDictKeyError as e:
             return JsonResponse({'success': False, 'error': f'Missing required parameter: {str(e)}'}, status=400)
         except Exception as e:
             return JsonResponse({'success': False, 'error': f'An error occurred: {str(e)}'}, status=400)
@@ -97,7 +99,7 @@ def create_task(request):
 
             files = request.FILES.getlist('file_task')
             for file in files:
-                TaskFile.objects.create(task=task, file_task=file)
+                TaskFile.objects.create(task_id=task, file_task=file)
             # notifications = Notification.objects.create(
             #     user_id = data['user'],
             #     message=f'Вам назначена новая задача {data["name_task"]}',

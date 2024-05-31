@@ -57,7 +57,15 @@ class Task(models.Model):
 class TaskFile(models.Model):
     task = models.ForeignKey(Task, related_name='files', on_delete=models.CASCADE)
     file_task = models.FileField(upload_to='task_files/',default='', null=True)
-
+    comments = models.TextField(verbose_name='Комментарии', null=True, blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Автор', related_name='task_files')
+    action = models.IntegerField(choices= (
+                                 (1, 'Create task'),
+                                 (2, 'Send tester'),
+                                 (3, 'Send modification'),
+                                 (4, 'Send analyst'),
+                                 (5, 'Link developer'),
+                                 ))
 class ProjectFile(models.Model):
     project = models.ForeignKey(Project, related_name='files', on_delete=models.CASCADE)
     file_project = models.FileField(upload_to='project_files/',default='', null=True)

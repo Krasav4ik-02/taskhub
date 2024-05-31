@@ -159,9 +159,13 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'files': [],
                     'tasks': [],
                 }
+                files = ProjectFile.objects.filter(project_id=project.id)
+                for file in files:
 
+                    project_data['files'].append(file.file_project.url if file.file_project.url else None)
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
