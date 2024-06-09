@@ -164,7 +164,6 @@ def dashboard(request):
                 }
                 files = ProjectFile.objects.filter(project_id=project.id)
                 for file in files:
-
                     project_data['files'].append(file.file_project.url if file.file_project.url else None)
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
@@ -177,7 +176,14 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'files': [],
                     }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
                 info['projects'].append(project_data)
             for notification in notifications:
@@ -241,7 +247,11 @@ def dashboard(request):
                     'project_date_end': project.project_date_end,
                     'tasks': [],
                     'users_in_project': [],
+                    'files': [],
                 }
+                files = ProjectFile.objects.filter(project_id=project.id)
+                for file in files:
+                    project_data['files'].append(file.file_project.url if file.file_project.url else None)
 
                 users_in_project = User.objects.filter(projectmembership__project=project, role__in=[2, 3, 4, 5])
                 for developer in users_in_project:
@@ -256,7 +266,6 @@ def dashboard(request):
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
-                        'user_id': task.user_id,
                         'task_id': task.id,
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
@@ -265,7 +274,14 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'files': [],
                     }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
                 info['projects'].append(project_data)
             for developers in users:
@@ -303,8 +319,12 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'files': [],
                     'tasks': [],
                 }
+                files = ProjectFile.objects.filter(project_id=project.id)
+                for file in files:
+                    project_data['files'].append(file.file_project.url if file.file_project.url else None)
 
                 tasks = Task.objects.filter(user__id=data['id'], project=project, task_status = 1)
                 for task in tasks:
@@ -317,7 +337,14 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'files': [],
                     }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
                 info['projects'].append(project_data)
             for testers in users:
@@ -355,8 +382,13 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'files': [],
                     'tasks': [],
+                    'tasks_tester': [],
                 }
+                files = ProjectFile.objects.filter(project_id=project.id)
+                for file in files:
+                    project_data['files'].append(file.file_project.url if file.file_project.url else None)
 
                 tasks = Task.objects.filter(task_status = 2,project=project, id_tester = None)
                 for task in tasks:
@@ -369,8 +401,37 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'files': [],
                     }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
+
+                tasks = Task.objects.filter(task_status=2, project=project, id_tester=data['id'])
+                for task in tasks:
+                    task_data = {
+                        'task_id': task.id,
+                        'name_task': task.name_task,
+                        'task_descriptions': task.task_descriptions,
+                        'task_date_start': task.task_date_start,
+                        'task_date_end': task.task_date_end,
+                        'task_priority': task.task_priority,
+                        'task_complexity': task.task_complexity,
+                        'task_status': task.task_status,
+                        'id_tester': task.id_tester,
+                        'files': [],
+                    }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
+                    project_data['tasks_tester'].append(task_data)
                 info['projects'].append(project_data)
 
             for developer in developers:
@@ -415,8 +476,12 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'files': [],
                     'tasks': [],
                 }
+                files = ProjectFile.objects.filter(project_id=project.id)
+                for file in files:
+                    project_data['files'].append(file.file_project.url if file.file_project.url else None)
 
                 tasks = Task.objects.filter(project=project, task_status=4)
                 for task in tasks:
@@ -428,7 +493,14 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'files': [],
                     }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
                 info['projects'].append(project_data)
             for developer in developers:

@@ -13,4 +13,8 @@ urlpatterns = [
     path('dissmiss', views.dissmiss, name='dismiss'),
     path('link_developer', views.link_developer, name='link_developer'),
     path('invite_task', views.invite_task, name='invite_task'),
+    path('freeze_task', views.freeze_task, name='freeze_task'),
+    path('completed_task', views.completed_task, name='completed_task'),
+    path('send_task_analyst', views.send_task_analyst, name='send_task_analyst'),
+    path('send_modification', views.send_modification, name='send_modification'),
 ]

@@ -148,7 +148,7 @@ def submit_vacation(request):
             type_vacation = data['type_vacation']
         )
 
-        vacation_tasks = Task.objects.filter(user_id=data['id'], task_status__lt=5)
+        vacation_tasks = Task.objects.filter(user_id=data['id'], task_status__lt=5, task_date_start__gt = data['start_date'], task_date_start__lt=data['end_date'])
         print(vacation_tasks)
         for vacation_task in vacation_tasks:
             vacation_task.task_vacation_status = True
@@ -156,8 +156,8 @@ def submit_vacation(request):
 
         user = User.objects.get(id=data['id'])
         managers = User.objects.get(bin=user.bin, role=1)
-        vacations = VacationRequest.objects.filter(user_id=data['id'], status=2)
-        vacations_used_up = VacationRequest.objects.filter(user_id=data['id'], status=2,
+        vacations = VacationRequest.objects.filter(user_id=data['id'], status__in=[2,4])
+        vacations_used_up = VacationRequest.objects.filter(user_id=data['id'], status__in=[2,4],
                                                            start_date__year=date.today().year)
         if user.data_joined_to_work:
             years_worked = (date.today() - user.data_joined_to_work)
@@ -294,6 +294,39 @@ def vacations_for_manager_reject(request):
 
 @csrf_exempt
 @ensure_csrf_cookie
+def vacations_for_manager_recall(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            vacations= VacationRequest.objects.filter(user__bin=data['bin'], status = 4)
+            info = {
+                'vacations': []
+            }
+            for vac in vacations:
+                vacation={
+                    'id_vacation' : vac.id,
+                    'start_date' : vac.start_date,
+                    'end_date' : vac.end_date,
+                    'manager_id': vac.manager_id,
+                    'status' : vac.status,
+                    'type_vacation': vac.type_vacation,
+                    'comments': vac.comments,
+                    'date': vac.date,
+                    'user_id': vac.user_id,
+                    'user_first_name': vac.user.first_name,
+                    'user_last_name': vac.user.last_name,
+                    'user_role': vac.user.role,
+                    'user_ava_image': vac.user.ava_image.url if vac.user.ava_image else None,
+                }
+                print(vacation)
+                info['vacations'].append(vacation)
+            return JsonResponse(info, safe=False)
+        except Exception as e:
+            return JsonResponse({'error': 'fff'}, status=400)
+
+
+@csrf_exempt
+@ensure_csrf_cookie
 def vacation_tasks(request):
     if request.method == 'POST':
         try:
@@ -316,3 +349,95 @@ def vacation_tasks(request):
             return JsonResponse(task_massiv, safe=False)
         except Exception as e:
             return JsonResponse({'error': 'fff'}, status=400)
+
+
+@csrf_exempt
+@ensure_csrf_cookie
+def recall_vacation(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            vacation = VacationRequest.objects.get(id = data['id_vacation'])
+            vacation.status = 4
+            vacation.end_date = data['date']
+            vacation.save()
+        except Exception as e:
+            return JsonResponse({'error': 'fff'}, status=400)
+
+@csrf_exempt
+@ensure_csrf_cookie
+def edit_vacation(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            print('data', data)
+            vacation_id = data.get('id_vacation')
+            if vacation_id:
+                vacation = VacationRequest.objects.get(id=vacation_id)
+                if 'start_date' in data:
+                    vacation.start_date = data['start_date']
+                if 'end_date' in data:
+                    vacation.end_date = data['end_date']
+                if 'comments' in data:
+                    vacation.comments = data['comments']
+                if 'type_vacation' in data:
+                    vacation.type_vacation = data['type_vacation']
+                vacation.save()
+
+                user = User.objects.get(id=data['id'])
+                managers = User.objects.get(bin=user.bin, role=1)
+                vacations = VacationRequest.objects.filter(user_id=data['id'], status__in=[2, 4])
+                vacations_used_up = VacationRequest.objects.filter(user_id=data['id'], status__in=[2, 4],
+                                                                   start_date__year=date.today().year)
+                if user.data_joined_to_work:
+                    years_worked = (date.today() - user.data_joined_to_work)
+                    print(years_worked.days)
+                    vacation_days = int(((years_worked.days / 365) * 24))
+                    mers = 0
+                    bmw = 0
+                    for vacation_used_up in vacations_used_up:
+                        vacat = vacation_used_up.end_date - vacation_used_up.start_date
+                        bmw += vacat.days
+                    for vacation in vacations:
+                        vacat = vacation.end_date - vacation.start_date
+                        mers += vacat.days
+                vacation_requests = VacationRequest.objects.filter(user_id=data['id'])
+                info = {
+                    'manager_id': managers.id,
+                    'date_joined_to_work': user.data_joined_to_work,
+                    'balans': vacation_days - mers,
+                    'used_up': vacation_days - bmw,
+                    'vacation_request': [],
+                }
+                for vacation_request in vacation_requests:
+                    days_vacation = vacation_request.end_date - vacation_request.start_date
+                    vacation_request_data = {
+                        'id_vacation': vacation_request.id,
+                        'start_date': vacation_request.start_date,
+                        'end_date': vacation_request.end_date,
+                        'type_vacation': vacation_request.type_vacation,
+                        'comments': vacation_request.comments,
+                        'date': vacation_request.date,
+                        'status': vacation_request.status,
+                        'days': days_vacation.days,
+                    }
+                    info['vacation_request'].append(vacation_request_data)
+                return JsonResponse(info, safe=False)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+    elif request.method == 'DELETE':
+        try:
+            data = json.loads(request.body)
+            print(data)
+            vacation_id = data.get('id_vacation')
+            if vacation_id:
+                vacation = VacationRequest.objects.get(id=vacation_id)
+                vacation.delete()
+                return JsonResponse({'success': 'Task deleted successfully'})
+            else:
+                return JsonResponse({'error': 'Project ID not provided'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    else:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)

@@ -5,7 +5,7 @@ from manager.models import User
 class Project(models.Model):
     name_project = models.CharField(verbose_name=' Название проекта', max_length=100)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-    project_descriptions = models.CharField(verbose_name=' Описание', max_length=255)
+    project_descriptions = models.TextField(verbose_name=' Описание')
     project_date_start = models.DateField(verbose_name=' Дата создание')
     project_date_end = models.DateField(verbose_name=' Дата окончания')
     file_project = models.FileField(upload_to='project_files/',default='', null=True)
@@ -26,7 +26,7 @@ class Task(models.Model):
     project = models.ForeignKey(Project, on_delete=models.CASCADE)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     name_task = models.CharField(verbose_name='Название задачи', max_length=100)
-    task_descriptions = models.CharField(verbose_name=' Описание задачи', max_length=255)
+    task_descriptions = models.TextField(verbose_name=' Описание задачи')
     task_date_start = models.DateField(verbose_name=' Дата создания задачи')
     task_date_end = models.DateField(verbose_name=' Дата окончания задачи')
     task_priority = models.IntegerField(choices=(
@@ -58,14 +58,14 @@ class TaskFile(models.Model):
     task = models.ForeignKey(Task, related_name='files', on_delete=models.CASCADE)
     file_task = models.FileField(upload_to='task_files/',default='', null=True)
     comments = models.TextField(verbose_name='Комментарии', null=True, blank=True)
-    created_by = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Автор', related_name='task_files')
     action = models.IntegerField(choices= (
                                  (1, 'Create task'),
                                  (2, 'Send tester'),
                                  (3, 'Send modification'),
                                  (4, 'Send analyst'),
                                  (5, 'Link developer'),
-                                 ))
+                                 ), default=1)
+
 class ProjectFile(models.Model):
     project = models.ForeignKey(Project, related_name='files', on_delete=models.CASCADE)
     file_project = models.FileField(upload_to='project_files/',default='', null=True)

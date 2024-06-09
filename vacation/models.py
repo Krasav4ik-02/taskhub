@@ -9,7 +9,8 @@ class VacationRequest(models.Model):
     comments = models.TextField()
     status = models.IntegerField( choices=((1, 'На согласований'),
                                                 (2, 'Одобрено'),
-                                                (3, 'Отклонено')), default=1)
+                                                (3, 'Отклонено'),
+                                                (4, 'Отозван'),), default=1)
     type_vacation = models.IntegerField( choices=((1, 'Оплачиваемый'),
                                                   (2, 'Социальный'),
                                                   (3, 'Дополнительный оплачиваемый'),

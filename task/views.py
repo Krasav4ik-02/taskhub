@@ -18,14 +18,8 @@ def create_project(request):
         try:
             # Extracting form data from request.POST
             data = request.POST
-            print('request', request.POST)
             files = request.FILES.get('file')  # Use getlist to handle multiple files
-            print('files:', files)
-            required_fields = ['name_project', 'user', 'project_descriptions', 'project_date_start', 'project_date_end']
 
-            for field in required_fields:
-                if field not in data:
-                    return JsonResponse({'success': False, 'error': f'Missing required field: {field}'}, status=400)
 
             project = Project.objects.create(
                 name_project=data['name_project'],
@@ -37,12 +31,16 @@ def create_project(request):
             if files:
                 ProjectFile.objects.create(project_id=project.id, file_project=files)
 
-            if not ProjectMembership.objects.filter(user_id=data['user'], project_id=project.id).exists():
-                ProjectMembership.objects.create(
-                    user_id=data['user'],
-                    project_id=project.id,
-                    role=5
-                )
+            ProjectMembership.objects.create(
+                user_id=data['user'],
+                project_id=project.id,
+                role=5
+            )
+            ProjectMembership.objects.create(
+                user_id=data['mainanalyst_id'],
+                project_id=project.id,
+                role=8
+            )
 
             user_projects = Project.objects.filter(user=project.user)
             projects_data = []
@@ -84,8 +82,10 @@ def create_project(request):
 def create_task(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            data = request.POST
             print(data)
+            files = request.FILES.get('file')  # Use getlist to handle multiple files
+            print('files', files)
             task = Task.objects.create(
                 name_task=data['name_task'],
                 user_id=data['teamlead_id'],
@@ -97,9 +97,9 @@ def create_task(request):
                 task_complexity=data['task_complexity'],
             )
 
-            files = request.FILES.getlist('file_task')
-            for file in files:
-                TaskFile.objects.create(task_id=task, file_task=file)
+            if files:
+                TaskFile.objects.create(task_id=task.id, file_task=files)
+
             # notifications = Notification.objects.create(
             #     user_id = data['user'],
             #     message=f'Вам назначена новая задача {data["name_task"]}',
@@ -125,6 +125,11 @@ def create_task(request):
 
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
+                    if files:
+                        task_files = TaskFile.objects.get(task_id=task.id)
+                        task_data = task_files.file_task.url if task_files.file_task.url else None
+                    else:
+                        task_data = 0
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -134,6 +139,7 @@ def create_task(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'files': task_data,
                     }
                     project_data['tasks'].append(task_data)
                 projects_data.append(project_data)
@@ -177,8 +183,14 @@ def edit_task(request):
                     'task_date_end': task.task_date_end,
                     'task_priority': task.task_priority,
                     'task_complexity': task.task_complexity,
+                    'files': [],
                 }
-
+                files = TaskFile.objects.filter(task_id=task.id)
+                for file in files:
+                    if file.file_task:
+                        task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                    else:
+                        task_data['files'].append(None)
                 # notifications = Notification.objects.create(
                 #     user_id=data['user'],
                 #     message=f'Задача {data["name_task"]} изменена',
@@ -253,7 +265,14 @@ def edit_project(request):
                             'task_priority': task.task_priority,
                             'task_complexity': task.task_complexity,
                             'task_status': task.task_status,
+                            'files': [],
                         }
+                        files = TaskFile.objects.filter(task_id=task.id)
+                        for file in files:
+                            if file.file_task:
+                                task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            else:
+                                task_data['files'].append(None)
                         project_data['tasks'].append(task_data)
                     info['projects'].append(project_data)
                 # notifications = Notification.objects.create(
@@ -344,10 +363,15 @@ def link_developer(request):
 def send_task(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            data = request.POST
             print(data)
             task_id = data.get('task_id')
             task = Task.objects.get(id=task_id)
+            files = request.FILES.get('file')  # Use getlist to handle multiple files
+            if files:
+                TaskFile.objects.create(task_id=task.id, file_task=files, comments = data['comments'], action = 2)
+            else:
+                TaskFile.objects.create(task_id=task.id, comments=data['comments'], action=2)
             task.task_status = 2
             task.save()
             return JsonResponse({'success': 'Task sent successfully'})
@@ -366,6 +390,88 @@ def invite_task(request):
             task.id_tester = data['id']
             task.task_status = 2
             task.save()
+            users = User.objects.filter(bin=data['bin'])
+            user_projects = Project.objects.filter(user__in=users)
+            info = {
+                'projects': [],
+            }
+            for project in user_projects:
+                project_data = {
+                    'project_id': project.id,
+                    'name_project': project.name_project,
+                    'project_descriptions': project.project_descriptions,
+                    'project_date_start': project.project_date_start,
+                    'project_date_end': project.project_date_end,
+                    'files': [],
+                    'tasks': [],
+                    'tasks_tester': [],
+                }
+                files = ProjectFile.objects.filter(project_id=project.id)
+                for file in files:
+                    project_data['files'].append(file.file_project.url if file.file_project.url else None)
+
+                tasks = Task.objects.filter(task_status = 2,project=project, id_tester = None)
+                for task in tasks:
+                    task_data = {
+                        'task_id': task.id,
+                        'name_task': task.name_task,
+                        'task_descriptions': task.task_descriptions,
+                        'task_date_start': task.task_date_start,
+                        'task_date_end': task.task_date_end,
+                        'task_priority': task.task_priority,
+                        'task_complexity': task.task_complexity,
+                        'task_status': task.task_status,
+                        'files': [],
+                    }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
+                    project_data['tasks'].append(task_data)
+
+                tasks = Task.objects.filter(task_status=2, project=project, id_tester=data['id'])
+                for task in tasks:
+                    task_data = {
+                        'task_id': task.id,
+                        'name_task': task.name_task,
+                        'task_descriptions': task.task_descriptions,
+                        'task_date_start': task.task_date_start,
+                        'task_date_end': task.task_date_end,
+                        'task_priority': task.task_priority,
+                        'task_complexity': task.task_complexity,
+                        'task_status': task.task_status,
+                        'id_tester': task.id_tester,
+                        'files': [],
+                    }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
+                    project_data['tasks_tester'].append(task_data)
+                info['projects'].append(project_data)
+            return JsonResponse(info, safe=False)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+@csrf_exempt
+@ensure_csrf_cookie
+def send_modification(request):
+    if request.method == 'POST':
+        try:
+            data = request.POST
+            print(data)
+            task_id = data.get('task_id')
+            task = Task.objects.get(id=task_id)
+            files = request.FILES.get('file')  # Use getlist to handle multiple files
+            if files:
+                TaskFile.objects.create(task_id=task.id, file_task=files, comments = data['comments'], action = 4)
+            else:
+                TaskFile.objects.create(task_id=task.id, comments=data['comments'], action=3)
+            task.task_status = 3
+            task.save()
             return JsonResponse({'success': 'Task sent successfully'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
@@ -375,10 +481,15 @@ def invite_task(request):
 def send_task_analyst(request):
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
+            data = request.POST
             print(data)
             task_id = data.get('task_id')
             task = Task.objects.get(id=task_id)
+            files = request.FILES.get('file')  # Use getlist to handle multiple files
+            if files:
+                TaskFile.objects.create(task_id=task.id, file_task=files, comments = data['comments'], action = 4)
+            else:
+                TaskFile.objects.create(task_id=task.id, comments=data['comments'], action=4)
             task.task_status = 4
             task.save()
             return JsonResponse({'success': 'Task sent successfully'})
@@ -650,3 +761,17 @@ def calculate_task_work_units(task):
                        priority_units_mapping[task.task_priority])
 
     return task_work_units
+
+@csrf_exempt
+@ensure_csrf_cookie
+def freeze_task(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            task_id = data.get('task_id')
+            task = Task.objects.get(id=task_id)
+            task.task_status = 6
+            task.save()
+            return JsonResponse({'success': 'Task linked succesfully'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
