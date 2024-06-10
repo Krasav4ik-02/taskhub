@@ -74,6 +74,10 @@ def apply_vacation(request):
         print(data)
         vacation = VacationRequest.objects.get(id = data['id_vacation'])
         vacation.status = 2
+        notifications = Notification.objects.create(
+            user_id=vacation.user_id,
+            message=f'Менеджер одобрил вашу заявку на отпуск с {vacation.start_date}-{vacation.end_date}',
+        )
         vacation.save()
         vacations = VacationRequest.objects.filter(user__bin=data['bin'], status=1)
         info = {
@@ -108,6 +112,10 @@ def reject_vacation(request):
         print(data)
         vacation = VacationRequest.objects.get(id = data['id_vacation'])
         vacation.status = 3
+        notifications = Notification.objects.create(
+            user_id=vacation.user_id,
+            message=f'Менеджер отклонил вашу заявку на отпуск с {vacation.start_date}-{vacation.end_date}',
+        )
         vacation.save()
         vacations = VacationRequest.objects.filter(user__bin=data['bin'], status=1)
         info = {
@@ -147,7 +155,11 @@ def submit_vacation(request):
             date = date.today(),
             type_vacation = data['type_vacation']
         )
-
+        user = User.objects.get(id=vacation_data.user_id)
+        notifications = Notification.objects.create(
+            user_id=vacation_data.manager_id,
+            message=f'Cотрудник {user.first_name} {user.last_name} отправил заявку на отпуск с {vacation_data.start_date}-{vacation_data.end_date}',
+        )
         vacation_tasks = Task.objects.filter(user_id=data['id'], task_status__lt=5, task_date_start__gt = data['start_date'], task_date_start__lt=data['end_date'])
         print(vacation_tasks)
         for vacation_task in vacation_tasks:
@@ -331,7 +343,7 @@ def vacation_tasks(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
-            tasks = Task.objects.filter(user__bin=data['bin'], task_vacation_status = True)
+            tasks = Task.objects.filter(user__bin=data['bin'], task_vacation_status = True, task_status__lt = 6)
             task_massiv = []
             for task in tasks:
                 task_data = {
@@ -357,10 +369,38 @@ def recall_vacation(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            print('data: ', data)
             vacation = VacationRequest.objects.get(id = data['id_vacation'])
             vacation.status = 4
-            vacation.end_date = data['date']
+            vacation.end_date = date.today()
+            notifications = Notification.objects.create(
+                user_id=vacation.user_id,
+                message=f'Менеджер отозвал заявку на отпуск с {vacation.start_date}-{vacation.end_date}',
+            )
             vacation.save()
+            vacations = VacationRequest.objects.filter(user__bin=data['bin'], status=2)
+            info = {
+                'vacations': []
+            }
+            for vac in vacations:
+                vacation = {
+                    'id_vacation': vac.id,
+                    'start_date': vac.start_date,
+                    'end_date': vac.end_date,
+                    'manager_id': vac.manager_id,
+                    'status': vac.status,
+                    'type_vacation': vac.type_vacation,
+                    'comments': vac.comments,
+                    'date': vac.date,
+                    'user_id': vac.user_id,
+                    'user_first_name': vac.user.first_name,
+                    'user_last_name': vac.user.last_name,
+                    'user_role': vac.user.role,
+                    'user_ava_image': vac.user.ava_image.url if vac.user.ava_image else None,
+                }
+                print(vacation)
+                info['vacations'].append(vacation)
+            return JsonResponse(info, safe=False)
         except Exception as e:
             return JsonResponse({'error': 'fff'}, status=400)
 
@@ -382,6 +422,12 @@ def edit_vacation(request):
                     vacation.comments = data['comments']
                 if 'type_vacation' in data:
                     vacation.type_vacation = data['type_vacation']
+                user = User.objects.get(id=vacation.user_id)
+                notifications = Notification.objects.create(
+                    user_id=vacation.manager_id,
+                    message=f'Cотрудник {user.first_name} {user.last_name} изменил заявку на отпуск',
+                )
+
                 vacation.save()
 
                 user = User.objects.get(id=data['id'])
@@ -433,6 +479,11 @@ def edit_vacation(request):
             vacation_id = data.get('id_vacation')
             if vacation_id:
                 vacation = VacationRequest.objects.get(id=vacation_id)
+                user = User.objects.get(id=vacation.user_id)
+                notifications = Notification.objects.create(
+                    user_id=vacation.manager_id,
+                    message=f'Cотрудник {user.first_name} {user.last_name} удалил заявку на отпуск',
+                )
                 vacation.delete()
                 return JsonResponse({'success': 'Task deleted successfully'})
             else:

@@ -6,6 +6,8 @@ from django.http import JsonResponse
 from django.utils.datastructures import MultiValueDict, MultiValueDictKeyError
 from django.utils.timezone import make_aware
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+from django.db.models import Q
+
 from task.models import *
 from notifications.models import *
 from urllib.parse import parse_qs
@@ -100,11 +102,11 @@ def create_task(request):
             if files:
                 TaskFile.objects.create(task_id=task.id, file_task=files)
 
-            # notifications = Notification.objects.create(
-            #     user_id = data['user'],
-            #     message=f'Вам назначена новая задача {data["name_task"]}',
-            # )
-
+            notifications = Notification.objects.create(
+                user_id = data['teamlead_id'],
+                message=f'Аналитик создал задачу {data["name_task"]}',
+            )
+            print(notifications)
             # if not ProjectMembership.objects.filter(user_id=data['teamlead_id'], project_id=data['project_id']).exists():
             #     role_user = User.objects.get(id=data['teamlead_id'],)
             #     projectmember = ProjectMembership(
@@ -125,11 +127,6 @@ def create_task(request):
 
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
-                    if files:
-                        task_files = TaskFile.objects.get(task_id=task.id)
-                        task_data = task_files.file_task.url if task_files.file_task.url else None
-                    else:
-                        task_data = 0
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -139,8 +136,14 @@ def create_task(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
-                        'files': task_data,
+                        'files': [],
                     }
+                    files = TaskFile.objects.filter(task_id=task.id)
+                    for file in files:
+                        if file.file_task:
+                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                        else:
+                            task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
                 projects_data.append(project_data)
 
@@ -158,6 +161,7 @@ def edit_task(request):
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
+            print(data)
             task_id = data.get('task_id')
             if task_id:
                 task = Task.objects.get(id=task_id)
@@ -191,10 +195,10 @@ def edit_task(request):
                         task_data['files'].append(file.file_task.url if file.file_task.url else None)
                     else:
                         task_data['files'].append(None)
-                # notifications = Notification.objects.create(
-                #     user_id=data['user'],
-                #     message=f'Задача {data["name_task"]} изменена',
-                # )
+                notifications = Notification.objects.create(
+                    user_id=task.user_id,
+                    message=f'Задача под номером {data["task_id"]} изменена',
+                )
 
                 return JsonResponse({'success': 'Task updated successfully', 'task_data': task_data})
         except Exception as e:
@@ -206,10 +210,10 @@ def edit_task(request):
             task_id = data.get('task_id')
             if task_id:
                 task = Task.objects.get(id=task_id)
-                # notifications = Notification.objects.create(
-                #     user_id=data['id'],
-                #     message=f'Задача {task.name_task} удалена',
-                # )
+                notifications = Notification.objects.create(
+                    user_id=task.user_id,
+                    message=f'Задача {task.name_task} удалена',
+                )
                 task.delete()
                 return JsonResponse({'success': 'Task deleted successfully'})
             else:
@@ -275,10 +279,10 @@ def edit_project(request):
                                 task_data['files'].append(None)
                         project_data['tasks'].append(task_data)
                     info['projects'].append(project_data)
-                # notifications = Notification.objects.create(
-                #     user_id=data['user'],
-                #     message=f'Задача {data["name_project"]} изменена',
-                # )
+                notifications = Notification.objects.create(
+                    user_id=project.user_id,
+                    message=f'Проект под номером {data["project_id"]} изменен',
+                )
                 return JsonResponse(info, safe= False)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)
@@ -289,10 +293,10 @@ def edit_project(request):
             project_id = data.get('project_id')
             if project_id:
                 project = Project.objects.get(id=project_id)
-                # notifications = Notification.objects.create(
-                #     user_id=data['user'],
-                #     message=f'Задача {project.name_project} удалена',
-                # )
+                notifications = Notification.objects.create(
+                    user_id= project.user_id,
+                    message=f'Проект под номером {project.id} удален',
+                )
                 project.delete()
                 user_projects = Project.objects.filter(user__bin=data['bin'])
                 info = {
@@ -321,10 +325,6 @@ def edit_project(request):
                         }
                         project_data['tasks'].append(task_data)
                     info['projects'].append(project_data)
-                # notifications = Notification.objects.create(
-                #     user_id=data['user'],
-                #     message=f'Задача {data["name_project"]} изменена',
-                # )
                 return JsonResponse(info, safe=False)
             else:
                 return JsonResponse({'error': 'Project ID not provided'}, status=400)
@@ -346,6 +346,10 @@ def link_developer(request):
             task = Task.objects.get(id=task_id)
             task.user_id = data['developer_id']
             task.save()
+            notifications = Notification.objects.create(
+                user_id=data['developer_id'],
+                message=f'Тимлид привязал вас к задаче "{task.name_task}"',
+            )
             if not ProjectMembership.objects.filter(user_id=data['developer_id'], project_id=data['project_id']).exists():
                 role_user = User.objects.get(id=data['developer_id'],)
                 projectmember = ProjectMembership(
@@ -389,6 +393,13 @@ def invite_task(request):
             task = Task.objects.get(id=task_id)
             task.id_tester = data['id']
             task.task_status = 2
+            if not ProjectMembership.objects.filter(user_id=data['id'], project_id=task.project_id).exists():
+                projectmember = ProjectMembership(
+                    user_id=data['id'],
+                    project_id=task.project_id,
+                    role=6
+                )
+                projectmember.save()
             task.save()
             users = User.objects.filter(bin=data['bin'])
             user_projects = Project.objects.filter(user__in=users)
@@ -471,6 +482,10 @@ def send_modification(request):
             else:
                 TaskFile.objects.create(task_id=task.id, comments=data['comments'], action=3)
             task.task_status = 3
+            notifications = Notification.objects.create(
+                user_id=task.user_id,
+                message=f'Тестировщик отправил задачу "{task.name_task}" на доработку',
+            )
             task.save()
             return JsonResponse({'success': 'Task sent successfully'})
         except Exception as e:
@@ -506,6 +521,10 @@ def completed_task(request):
             task_id = data.get('task_id')
             task = Task.objects.get(id=task_id)
             task.task_status = 5
+            notifications = Notification.objects.create(
+                user_id=task.user_id,
+                message=f'Задача "{task.name_task}" закрыта',
+            )
             task.save()
             return JsonResponse({'success': 'Task sent successfully'})
         except Exception as e:
@@ -535,6 +554,9 @@ def get_info_users(request):
                 'id': user_info.id,
                 'bin': user_info.bin,
                 'phone_number': user_info.phone_number,
+                'task_norm': user_info.task_norm,
+                'task_plan': user_info.task_plan,
+                'task_goal': user_info.task_goal,
                 'tasks': [],
             }
             print(info)
@@ -591,6 +613,12 @@ def edit_user(request):
                     user.country = data['country']
                 if 'phone_number' in data:
                     user.phone_number = data['phone_number']
+                if 'task_norm' in data:
+                    user.task_norm = data['task_norm']
+                if 'task_plan' in data:
+                    user.task_plan = data['task_plan']
+                if 'task_goal' in data:
+                    user.task_goal = data['task_goal']
                 user.save()
 
                 user_data = {
@@ -607,6 +635,9 @@ def edit_user(request):
                     'telegram': user.telegram,
                     'country': user.country,
                     'phone_number': user.phone_number,
+                    'task_norm': user.task_norm,
+                    'task_plan': user.task_plan,
+                    'task_goal': user.task_goal,
                 }
 
                 return JsonResponse({'success': 'Profile updated successfully', 'user_data': user_data})
@@ -704,63 +735,36 @@ def calculate_user_kpi(request):
     except User.DoesNotExist:
         return JsonResponse({'error': 'User not found'}, status=404)
 
-    # Рассчитать KPI пользователя
-    kpi = calculate_user_kpi_value(user)
+    if user.task_norm and user.task_plan and user.task_goal == 0:
+        return JsonResponse({'error': 'ПИЗДЕЦ'}, status=400)
+    else:
+        kpi = calculate_user_kpi_value(user)
 
-    # Получить данные о задачах пользователя
-    tasks = Task.objects.filter(user=user).values('name_task', 'task_status', 'task_date_start', 'task_date_end')
+        # Получить данные о задачах пользователя
+        tasks_complexity1 = Task.objects.filter(Q(user_id=user.id) | Q(id_tester=user.id), task_status = 5, task_complexity=1)
+        tasks_complexity2 = Task.objects.filter(Q(user_id=user.id) | Q(id_tester=user.id), task_status = 5, task_complexity=2)
+        tasks_complexity3 = Task.objects.filter(Q(user_id=user.id) | Q(id_tester=user.id), task_status = 5, task_complexity=3)
+        tasks_complexity4 = Task.objects.filter(Q(user_id=user.id) | Q(id_tester=user.id), task_status = 5, task_complexity=4)
+        tasks_complexity5 = Task.objects.filter(Q(user_id=user.id) | Q(id_tester=user.id), task_status = 5, task_complexity=5)
+        # Формирование JSON-объекта с данными
+        response_data = {
+            'kpi': kpi,
+            'tasks_complexity1': len(tasks_complexity1),
+            'tasks_complexity2': len(tasks_complexity2),
+            'tasks_complexity3': len(tasks_complexity3),
+            'tasks_complexity4': len(tasks_complexity4),
+            'tasks_complexity5': len(tasks_complexity5),
+        }
 
-    # Формирование JSON-объекта с данными
-    response_data = {
-        'kpi': kpi,
-        'tasks': list(tasks)  # Преобразование QuerySet в список словарей
-    }
-
-    return JsonResponse(response_data)
+        return JsonResponse(response_data)
 
 def calculate_user_kpi_value(user):
-    # Рассчитать общее количество единиц работы пользователя
     total_work_units = 0
-    tasks = Task.objects.filter(user=user)
+    tasks = Task.objects.filter(Q(user_id=user.id) | Q(id_tester=user.id), task_status=5)
     for task in tasks:
-        task_work_units = calculate_task_work_units(task)
-        total_work_units += task_work_units
+        total_work_units += (task.task_complexity + task.task_priority)
+    return ((total_work_units/(user.task_norm*5))*100)*0.6+((total_work_units/(user.task_plan*5))*100)*0.2 + ((total_work_units/(user.task_goal*5))*100)*0.2
 
-    # Рассчитать процент выполненной работы пользователя
-    completed_work_units = 0
-    for task in tasks:
-        if task.task_status == 5:  # Предполагается, что статус 5 означает выполнение задачи
-            task_work_units = calculate_task_work_units(task)
-            completed_work_units += task_work_units
-
-    if total_work_units == 0:
-        return 0  # Вернуть 0, если у пользователя нет работы
-    else:
-        completion_rate = (completed_work_units / total_work_units) * 100
-        return completion_rate
-
-def calculate_task_work_units(task):
-    # Словарь соответствия сложности задачи к количеству единиц работы
-    complexity_units_mapping = {
-        'Very Low': 1,
-        'Low': 2,
-        'Normal': 3,
-        'Medium': 4,
-        'High': 5,
-    }
-
-    # Словарь соответствия приоритета задачи к количеству единиц работы
-    priority_units_mapping = {
-        'Very Low': 1,
-        'Low': 2,
-        'Normal': 3,
-        'Medium': 4,
-        'High': 5,
-    }
-    task_work_units = (complexity_units_mapping[task.task_complexity] *
-                       priority_units_mapping[task.task_priority])
-
-    return task_work_units
 
 @csrf_exempt
 @ensure_csrf_cookie
@@ -772,6 +776,10 @@ def freeze_task(request):
             task = Task.objects.get(id=task_id)
             task.task_status = 6
             task.save()
+            notifications = Notification.objects.create(
+                user_id=task.user_id,
+                message=f'Задача "{task.name_task}" перешла в статус "Заморожен"',
+            )
             return JsonResponse({'success': 'Task linked succesfully'})
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=400)

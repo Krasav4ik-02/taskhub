@@ -17,4 +17,5 @@ urlpatterns = [
     path('completed_task', views.completed_task, name='completed_task'),
     path('send_task_analyst', views.send_task_analyst, name='send_task_analyst'),
     path('send_modification', views.send_modification, name='send_modification'),
+    path('calculate_user_kpi', views.calculate_user_kpi, name='calculate_user_kpi'),
 ]

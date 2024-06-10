@@ -159,12 +159,22 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'users_in_project': [],
                     'files': [],
                     'tasks': [],
                 }
                 files = ProjectFile.objects.filter(project_id=project.id)
                 for file in files:
                     project_data['files'].append(file.file_project.url if file.file_project.url else None)
+                users_in_project = User.objects.filter(projectmembership__project=project)
+                for developer in users_in_project:
+                    developer_data = {
+                        'id': developer.id,
+                        'username': developer.username,
+                        'role': developer.role,
+                        'ava_image': developer.ava_image.url if developer.ava_image else None,
+                    }
+                    project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
                     task_data = {
@@ -253,7 +263,7 @@ def dashboard(request):
                 for file in files:
                     project_data['files'].append(file.file_project.url if file.file_project.url else None)
 
-                users_in_project = User.objects.filter(projectmembership__project=project, role__in=[2, 3, 4, 5])
+                users_in_project = User.objects.filter(projectmembership__project=project)
                 for developer in users_in_project:
                     developer_data = {
                         'id': developer.id,
@@ -319,13 +329,22 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'users_in_project': [],
                     'files': [],
                     'tasks': [],
                 }
                 files = ProjectFile.objects.filter(project_id=project.id)
                 for file in files:
                     project_data['files'].append(file.file_project.url if file.file_project.url else None)
-
+                users_in_project = User.objects.filter(projectmembership__project=project)
+                for developer in users_in_project:
+                    developer_data = {
+                        'id': developer.id,
+                        'username': developer.username,
+                        'role': developer.role,
+                        'ava_image': developer.ava_image.url if developer.ava_image else None,
+                    }
+                    project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(user__id=data['id'], project=project, task_status = 1)
                 for task in tasks:
                     task_data = {
@@ -382,6 +401,7 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'users_in_project': [],
                     'files': [],
                     'tasks': [],
                     'tasks_tester': [],
@@ -389,7 +409,15 @@ def dashboard(request):
                 files = ProjectFile.objects.filter(project_id=project.id)
                 for file in files:
                     project_data['files'].append(file.file_project.url if file.file_project.url else None)
-
+                users_in_project = User.objects.filter(projectmembership__project=project)
+                for developer in users_in_project:
+                    developer_data = {
+                        'id': developer.id,
+                        'username': developer.username,
+                        'role': developer.role,
+                        'ava_image': developer.ava_image.url if developer.ava_image else None,
+                    }
+                    project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(task_status = 2,project=project, id_tester = None)
                 for task in tasks:
                     task_data = {
@@ -476,13 +504,22 @@ def dashboard(request):
                     'project_descriptions': project.project_descriptions,
                     'project_date_start': project.project_date_start,
                     'project_date_end': project.project_date_end,
+                    'users_in_project': [],
                     'files': [],
                     'tasks': [],
                 }
                 files = ProjectFile.objects.filter(project_id=project.id)
                 for file in files:
                     project_data['files'].append(file.file_project.url if file.file_project.url else None)
-
+                users_in_project = User.objects.filter(projectmembership__project=project)
+                for developer in users_in_project:
+                    developer_data = {
+                        'id': developer.id,
+                        'username': developer.username,
+                        'role': developer.role,
+                        'ava_image': developer.ava_image.url if developer.ava_image else None,
+                    }
+                    project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(project=project, task_status=4)
                 for task in tasks:
                     task_data = {

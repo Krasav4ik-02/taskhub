@@ -11,9 +11,7 @@ class VacationRequest(models.Model):
                                                 (2, 'Одобрено'),
                                                 (3, 'Отклонено'),
                                                 (4, 'Отозван'),), default=1)
-    type_vacation = models.IntegerField( choices=((1, 'Оплачиваемый'),
+    type_vacation = models.IntegerField( choices=((1, 'Ежегодный оплачиваемый'),
                                                   (2, 'Социальный'),
-                                                  (3, 'Дополнительный оплачиваемый'),
-                                                  (4, 'Учебный отпуск'),
-                                                  (5, 'Неоплачиваемый')))
+                                                  (5, 'Без содержания')))
     manager = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approved_vacation_requests')
