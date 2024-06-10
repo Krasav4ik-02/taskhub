@@ -57,7 +57,7 @@ def calculate_vacation_days(request):
                 print(info)
                 return JsonResponse(info, safe=False)
             else:
-                return JsonResponse({'error': 'Дата начала работы не указана'})
+                return JsonResponse({'error': 'Дата начала работы не указана'}, status=400)
 
         except User.DoesNotExist:
             return JsonResponse({'error': 'Пользователь с указанным ID не найден'}, status=404)

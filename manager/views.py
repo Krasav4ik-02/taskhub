@@ -234,8 +234,8 @@ def dashboard(request):
                 info['users'].append(user_company)
             for notification in notifications:
                 notification = {
-                    'message': notifications.message,
-                    'time': notifications.timestamp,
+                    'message': notification.message,
+                    'time': notification.timestamp,
                 }
                 info['notifications'].append(notification)
 
