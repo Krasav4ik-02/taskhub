@@ -24,7 +24,7 @@ SECRET_KEY = 'django-insecure-rhi619=lj)asok%qq=h9*iq8$&%o)5qku#er!88l!2oeaj4yy7
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['26.143.202.240','localhost']
+ALLOWED_HOSTS = ['26.209.237.113','localhost']
 
 INSTALLED_APPS = [
     'corsheaders',
@@ -80,7 +80,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'taskhub',
         'USER': 'postgres',
-        'PASSWORD': 'admin',
+        'PASSWORD': '13@12@02',
         'HOST': 'localhost',   # Может потребоваться изменить, если база данных расположена на другом сервере
         'PORT': '5432',            # По умолчанию PostgreSQL использует порт 5432
     }
@@ -124,9 +124,6 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'static'),  # Путь к папке 'static' в корне проекта
-]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'

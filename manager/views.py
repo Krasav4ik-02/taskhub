@@ -11,6 +11,7 @@ from manager.models import *
 from notifications.models import *
 
 
+
 @ensure_csrf_cookie
 @csrf_exempt
 def registration(request):
@@ -177,6 +178,8 @@ def dashboard(request):
                     project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
+                    task_instance = Task.objects.get(id=task.id)
+                    latest_comment = TaskFile.objects.filter(task=task_instance).order_by('-id').first()
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -186,12 +189,36 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'members': [],
+                        'last_comments': latest_comment.comments,
                         'files': [],
                     }
+                    developer_in_task = User.objects.get(id=task.user_id)
+                    developer_data = {
+                        'id': developer_in_task.id,
+                        'username': developer_in_task.username,
+                        'role': developer_in_task.role,
+                        'ava_image': developer_in_task.ava_image.url if developer_in_task.ava_image else None,
+                    }
+                    task_data['members'].append(developer_data)
+                    if task.id_tester:
+                        tester_in_task = User.objects.get(id=task.id_tester)
+                        tester_data = {
+                            'id': tester_in_task.id,
+                            'username': tester_in_task.username,
+                            'role': tester_in_task.role,
+                            'ava_image': tester_in_task.ava_image.url if tester_in_task.ava_image else None,
+                        }
+                        task_data['members'].append(tester_data)
+
                     files = TaskFile.objects.filter(task_id=task.id)
                     for file in files:
                         if file.file_task:
-                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            info_file={
+                                'url': file.file_task.url if file.file_task.url else None,
+                                'name': f'{file.file_task}',
+                            }
+                            task_data['files'].append(info_file)
                         else:
                             task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
@@ -275,6 +302,8 @@ def dashboard(request):
 
                 tasks = Task.objects.filter(project=project)
                 for task in tasks:
+                    task_instance = Task.objects.get(id=task.id)
+                    latest_comment = TaskFile.objects.filter(task=task_instance).order_by('-id').first()
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -284,12 +313,36 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'last_comments':latest_comment.comments,
+                        'members':[],
                         'files': [],
                     }
+                    developer_in_task = User.objects.get(id=task.user_id)
+                    developer_data = {
+                        'id': developer_in_task.id,
+                        'username': developer_in_task.username,
+                        'role': developer_in_task.role,
+                        'ava_image': developer_in_task.ava_image.url if developer_in_task.ava_image else None,
+                    }
+                    task_data['members'].append(developer_data)
+                    if task.id_tester:
+                        tester_in_task = User.objects.get(id=task.id_tester)
+                        tester_data = {
+                            'id': tester_in_task.id,
+                            'username': tester_in_task.username,
+                            'role': tester_in_task.role,
+                            'ava_image': tester_in_task.ava_image.url if tester_in_task.ava_image else None,
+                        }
+                        task_data['members'].append(tester_data)
+
                     files = TaskFile.objects.filter(task_id=task.id)
                     for file in files:
                         if file.file_task:
-                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            info_file = {
+                                'url': file.file_task.url if file.file_task.url else None,
+                                'name': f'{file.file_task}',
+                            }
+                            task_data['files'].append(info_file)
                         else:
                             task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
@@ -347,6 +400,8 @@ def dashboard(request):
                     project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(user__id=data['id'], project=project, task_status = 1)
                 for task in tasks:
+                    task_instance = Task.objects.get(id=task.id)
+                    latest_comment = TaskFile.objects.filter(task=task_instance).order_by('-id').first()
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -356,12 +411,37 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'last_comments':latest_comment.comments,
+                        'members':[],
                         'files': [],
                     }
+                    developer_in_task = User.objects.get(id=task.user_id)
+                    developer_data = {
+                        'id': developer_in_task.id,
+                        'username': developer_in_task.username,
+                        'role': developer_in_task.role,
+                        'ava_image': developer_in_task.ava_image.url if developer_in_task.ava_image else None,
+                    }
+                    task_data['members'].append(developer_data)
+                    if task.id_tester:
+                        tester_in_task = User.objects.get(id=task.id_tester)
+                        tester_data = {
+                            'id': tester_in_task.id,
+                            'username': tester_in_task.username,
+                            'role': tester_in_task.role,
+                            'ava_image': tester_in_task.ava_image.url if tester_in_task.ava_image else None,
+                        }
+                        task_data['members'].append(tester_data)
+
+
                     files = TaskFile.objects.filter(task_id=task.id)
                     for file in files:
                         if file.file_task:
-                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            info_file = {
+                                'url': file.file_task.url if file.file_task.url else None,
+                                'name': f'{file.file_task}',
+                            }
+                            task_data['files'].append(info_file)
                         else:
                             task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
@@ -420,6 +500,8 @@ def dashboard(request):
                     project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(task_status = 2,project=project, id_tester = None)
                 for task in tasks:
+                    task_instance = Task.objects.get(id=task.id)
+                    latest_comment = TaskFile.objects.filter(task=task_instance).order_by('-id').first()
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -429,18 +511,43 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'last_comments':latest_comment.comments,
+                        'members':[],
                         'files': [],
                     }
+                    developer_in_task = User.objects.get(id=task.user_id)
+                    developer_data = {
+                        'id': developer_in_task.id,
+                        'username': developer_in_task.username,
+                        'role': developer_in_task.role,
+                        'ava_image': developer_in_task.ava_image.url if developer_in_task.ava_image else None,
+                    }
+                    task_data['members'].append(developer_data)
+                    if task.id_tester:
+                        tester_in_task = User.objects.get(id=task.id_tester)
+                        tester_data = {
+                            'id': tester_in_task.id,
+                            'username': tester_in_task.username,
+                            'role': tester_in_task.role,
+                            'ava_image': tester_in_task.ava_image.url if tester_in_task.ava_image else None,
+                        }
+                        task_data['members'].append(tester_data)
                     files = TaskFile.objects.filter(task_id=task.id)
                     for file in files:
                         if file.file_task:
-                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            info_file = {
+                                'url': file.file_task.url if file.file_task.url else None,
+                                'name': f'{file.file_task}',
+                            }
+                            task_data['files'].append(info_file)
                         else:
                             task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
 
                 tasks = Task.objects.filter(task_status=2, project=project, id_tester=data['id'])
                 for task in tasks:
+                    task_instance = Task.objects.get(id=task.id)
+                    latest_comment = TaskFile.objects.filter(task=task_instance).order_by('-id').first()
                     task_data = {
                         'task_id': task.id,
                         'name_task': task.name_task,
@@ -451,12 +558,35 @@ def dashboard(request):
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
                         'id_tester': task.id_tester,
+                        'last_comments':latest_comment.comments,
+                        'members':[],
                         'files': [],
                     }
+                    developer_in_task = User.objects.get(id=task.user_id)
+                    developer_data = {
+                        'id': developer_in_task.id,
+                        'username': developer_in_task.username,
+                        'role': developer_in_task.role,
+                        'ava_image': developer_in_task.ava_image.url if developer_in_task.ava_image else None,
+                    }
+                    task_data['members'].append(developer_data)
+                    if task.id_tester:
+                        tester_in_task = User.objects.get(id=task.id_tester)
+                        tester_data = {
+                            'id': tester_in_task.id,
+                            'username': tester_in_task.username,
+                            'role': tester_in_task.role,
+                            'ava_image': tester_in_task.ava_image.url if tester_in_task.ava_image else None,
+                        }
+                        task_data['members'].append(tester_data)
                     files = TaskFile.objects.filter(task_id=task.id)
                     for file in files:
                         if file.file_task:
-                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            info_file = {
+                                'url': file.file_task.url if file.file_task.url else None,
+                                'name': f'{file.file_task}',
+                            }
+                            task_data['files'].append(info_file)
                         else:
                             task_data['files'].append(None)
                     project_data['tasks_tester'].append(task_data)
@@ -522,6 +652,8 @@ def dashboard(request):
                     project_data['users_in_project'].append(developer_data)
                 tasks = Task.objects.filter(project=project, task_status=4)
                 for task in tasks:
+                    task_instance = Task.objects.get(id=task.id)
+                    latest_comment = TaskFile.objects.filter(task=task_instance).order_by('-id').first()
                     task_data = {
                         'name_task': task.name_task,
                         'task_descriptions': task.task_descriptions,
@@ -530,12 +662,35 @@ def dashboard(request):
                         'task_priority': task.task_priority,
                         'task_complexity': task.task_complexity,
                         'task_status': task.task_status,
+                        'last_comments':latest_comment.comments,
+                        'members': [],
                         'files': [],
                     }
+                    developer_in_task = User.objects.get(id=task.user_id)
+                    developer_data = {
+                        'id': developer_in_task.id,
+                        'username': developer_in_task.username,
+                        'role': developer_in_task.role,
+                        'ava_image': developer_in_task.ava_image.url if developer_in_task.ava_image else None,
+                    }
+                    task_data['members'].append(developer_data)
+                    if task.id_tester:
+                        tester_in_task = User.objects.get(id=task.id_tester)
+                        tester_data = {
+                            'id': tester_in_task.id,
+                            'username': tester_in_task.username,
+                            'role': tester_in_task.role,
+                            'ava_image': tester_in_task.ava_image.url if tester_in_task.ava_image else None,
+                        }
+                        task_data['members'].append(tester_data)
                     files = TaskFile.objects.filter(task_id=task.id)
                     for file in files:
                         if file.file_task:
-                            task_data['files'].append(file.file_task.url if file.file_task.url else None)
+                            info_file = {
+                                'url': file.file_task.url if file.file_task.url else None,
+                                'name': f'{file.file_task}',
+                            }
+                            task_data['files'].append(info_file)
                         else:
                             task_data['files'].append(None)
                     project_data['tasks'].append(task_data)
